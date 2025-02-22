@@ -1,6 +1,6 @@
 {
   "name": "@leyyo/cache",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Common cache library",
   "keywords": [
     "cache",
