@@ -280,7 +280,7 @@ export type CacheCmdSet = CacheOptKeyOne & CacheOptSetModeOne & CacheOptSetExpir
 
 // region utility
 // todo add to leyyo
-type MaximumOneOf<T, K extends keyof T = keyof T> = K extends keyof T ? {
+export type MaximumOneOf<T, K extends keyof T = keyof T> = K extends keyof T ? {
     [P in K]?: T[K];
 } & Partial<Record<Exclude<keyof T, K>, never>> : never;
 // endregion utility
