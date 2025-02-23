@@ -1,5 +1,5 @@
 import {CacheInvalidator} from "./types";
-import {CacheChannel, CacheChannelAbstract, CacheID, TR} from "../channel";
+import {CacheChannel, CacheID, TR} from "../channel";
 
 class CacheInvalidatorImpl<A extends TR, N extends CacheID, C, T> implements CacheInvalidator<A, N, C, T> {
 
@@ -15,7 +15,7 @@ class CacheInvalidatorImpl<A extends TR, N extends CacheID, C, T> implements Cac
         this._dummy = dummy;
     }
 
-    add(v1: CacheID|Array<CacheID>, v2?: string|CacheChannel<A, N, C>): CacheInvalidator<A, N, C, T> {
+    add(v1: CacheID|Array<CacheID>, channel?: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, T> {
         if (this._dummy) {
             return this;
         }
@@ -27,17 +27,12 @@ class CacheInvalidatorImpl<A extends TR, N extends CacheID, C, T> implements Cac
         }
         const ids = this.channel.util.asKeys(v1);
         if (ids) {
-            let prefix: string;
-            if (v2 instanceof CacheChannelAbstract) {
-                prefix = v2.prop.prefix;
-            }
-            else if (typeof v2 === 'string') {
-                prefix = v2;
+            if (channel) {
+                this.keys.forEach(member => channel.invalidator.add(member, ids));
             }
             else {
-                prefix = this.channel.prop.prefix;
+                this.keys.forEach(member => this.channel.invalidator.add(member, ids));
             }
-            this.keys.forEach(member => this.channel.invalidator.add(member, ids, prefix));
         }
         return this;
     }
@@ -50,7 +45,7 @@ class CacheInvalidatorImpl<A extends TR, N extends CacheID, C, T> implements Cac
         }
         const ids = this.channel.util.asKeys(v1);
         if (ids) {
-            ids.forEach(id => this.channel.invalidator.remove(id, this.channel.prop.prefix));
+            ids.forEach(id => this.channel.invalidator.remove(id));
         }
         return this;
 

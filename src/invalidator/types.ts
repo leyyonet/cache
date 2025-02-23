@@ -14,17 +14,13 @@ export interface DummyInvalidator<A extends TR, N extends CacheID, C> {
 export interface CacheInvalidator<A extends TR, N extends CacheID, C, T> {
     readonly result: T;
     readonly keys: Array<string>;
-    add(id: CacheID): CacheInvalidator<A, N, C, T>;
-    add(ids: Array<CacheID>): CacheInvalidator<A, N, C, T>;
-    add(id: CacheID, prefix: string): CacheInvalidator<A, N, C, T>;
-    add(ids: Array<CacheID>, prefix: string): CacheInvalidator<A, N, C, T>;
-    add(id: CacheID, channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, T>;
-    add(ids: Array<CacheID>, channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, T>;
+    add(ids: CacheID|Array<CacheID>): CacheInvalidator<A, N, C, T>;
+    add(ids: CacheID|Array<CacheID>, channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, T>;
     clear(id: CacheID): CacheInvalidator<A, N, C, T>;
     clear(ids: Array<CacheID>): CacheInvalidator<A, N, C, T>;
 }
 
 export interface PropInvalidator<A extends TR, N extends CacheID, C> {
-    add(memberFull: string, identifiers: Array<CacheID>, prefix?: string): void;
-    remove(identifier: CacheID, prefix?: string): void;
+    add(memberFull: string, identifiers: Array<CacheID>): void;
+    remove(identifier: CacheID): void;
 }

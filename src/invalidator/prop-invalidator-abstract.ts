@@ -10,6 +10,6 @@ export abstract class PropInvalidatorAbstract<A extends TR, N extends CacheID, C
     protected fullKey(identifier: CacheID, prefix: string): string {
         return`#${prefix}${identifier}`;
     }
-    abstract add(memberFull: string, identifiers: Array<CacheID>, prefix?: string): void;
-    abstract remove(identifier: CacheID, prefix?: string): void;
+    abstract add(memberFull: string, identifiers: Array<CacheID>): void;
+    abstract remove(identifier: CacheID): void;
 }
