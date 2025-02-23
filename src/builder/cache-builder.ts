@@ -6,7 +6,7 @@ import {cacheHub} from "../hub";
 import {CacheClientLike} from "../client";
 import {CacheOptExpiryUnitType} from "../command";
 
-// noinspection JSUnusedLocalSymbols
+// noinspection JSUnusedLocalSymbols,JSUnusedGlobalSymbols
 export class CacheBuilder {
     private static _globalFetched: boolean = false;
     private static _defaults: CachePropChannel<TR> = {
@@ -29,6 +29,10 @@ export class CacheBuilder {
     }
 
     static build<A extends TR = TR, N extends CacheID = string, C = unknown>(client: CacheClientLike<C>, prop?: BuilderAny<CachePropChannel<A>> | CachePropChannel<A>): CacheChannel<A, N, C> {
+        // clone it
+        if (prop) {
+            prop = {...prop};
+        }
         let cloned: CachePropCompleted<A>;
         if (!prop) {
             cloned = {...this._defaults} as CachePropCompleted<A>;
