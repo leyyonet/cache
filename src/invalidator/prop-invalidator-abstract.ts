@@ -4,9 +4,6 @@ import {CacheID, TR} from "../channel";
 
 // noinspection JSUnusedGlobalSymbols
 export abstract class PropInvalidatorAbstract<A extends TR, N extends CacheID, C> extends CacheBaseAbstract<A, N, C> implements PropInvalidator<A, N, C> {
-    protected checkPrefix(prefix: string): string {
-        return prefix ? prefix : this.prop.prefix;
-    }
     protected fullKey(identifier: CacheID, prefix: string): string {
         return`#${prefix}${identifier}`;
     }
