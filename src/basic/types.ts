@@ -4,7 +4,7 @@ import {CacheCmdCopy, CacheCmdExpire, CacheCmdExpireAt, CacheCmdSet, CacheCmdTtl
 import {CachePropGlobal} from "../prop";
 
 export interface CacheBasic<A extends TR, N extends CacheID, C> {
-
+    get flattenGeneric$(): CacheBasicDef;
     // region get
     /**
      * Get the value of key
@@ -316,6 +316,7 @@ export interface CacheBasic<A extends TR, N extends CacheID, C> {
     // endregion other
 
 }
+export type CacheBasicDef = CacheBasic<TR, string, unknown>;
 export interface SetPropertyOpt<T> {
     property?: keyof T;
 }

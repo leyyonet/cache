@@ -1,11 +1,14 @@
 import {CacheBaseAbstract} from "../base";
-import {CacheBasic} from "./types";
+import {CacheBasic, CacheBasicDef} from "./types";
 import {CacheID, CacheKey, TR} from "../channel";
 import {CacheInvalidator} from "../invalidator";
 import {CacheCmdCopy, CacheCmdExpire, CacheCmdExpireAt, CacheCmdSet, CacheCmdTtl} from "../command";
 
 export abstract class CacheBasicAbstract<A extends TR, N extends CacheID, C> extends CacheBaseAbstract<A, N, C> implements CacheBasic<A, N, C> {
 
+    get flattenGeneric$(): CacheBasicDef {
+        return this;
+    }
     // region get
     /** @inheritDoc */
     abstract get(key: CacheKey<A>): Promise<A>;

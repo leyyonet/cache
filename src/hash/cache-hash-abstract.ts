@@ -9,7 +9,7 @@ import {
     CacheFieldTuples,
     CacheFieldValue,
     CacheFieldValues,
-    CacheHash,
+    CacheHash, CacheHashDef,
     CacheHashExpireResult,
     CacheHashFields
 } from "./types";
@@ -75,7 +75,9 @@ export abstract class CacheHashAbstract<A extends TR, N extends CacheID, C> exte
         }
         return obj;
     }
-
+    get flattenGeneric$(): CacheHashDef {
+        return this as CacheHashDef;
+    }
     // region get
     abstract getAll(key: CacheKey<A>): Promise<CacheFieldPartial<A>>;
     abstract getOne(key: CacheKey<A>, field: CacheFieldIn<A>): Promise<CacheFieldValue<A>>;

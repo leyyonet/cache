@@ -19,7 +19,9 @@ export interface CacheChannel<A extends TR, N extends CacheID, C> {
     get set(): CacheSet<A, N, C>;
     get invalidator(): PropInvalidator<A, N, C>;
     // endregion plugins
+    get flattenGeneric$(): CacheChannelDef;
 }
+export type CacheChannelDef = CacheChannel<TR, string, unknown>;
 
 export type CacheID = string | number;
 export type CacheKey<A extends TR> = CacheID | [CacheID, keyof A];

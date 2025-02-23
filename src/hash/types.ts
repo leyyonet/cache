@@ -3,7 +3,7 @@ import {CacheInvalidator} from "../invalidator";
 import {CacheCmdExpire, CacheCmdExpireAt, CacheCmdInc, CacheCmdTtl} from "../command";
 
 export interface CacheHash<A extends TR, N extends CacheID, C> {
-
+    get flattenGeneric$(): CacheHashDef;
     // region get
     getAll(key: CacheKey<A>): Promise<CacheFieldPartial<A>>;
     getOne(key: CacheKey<A>, field: CacheFieldIn<A>): Promise<CacheFieldValue<A>>;
@@ -52,6 +52,7 @@ export interface CacheHash<A extends TR, N extends CacheID, C> {
     randomValues(key: CacheKey<A>, count: number): Promise<CacheFieldPartial<A>>;
     // endregion random
 }
+export type CacheHashDef = CacheHash<TR, string, unknown>;
 export type CacheField<A extends TR> = keyof A | string;
 export type CacheFields<A extends TR> = Array<CacheField<A>>;
 export type CacheFieldIn<A extends TR> = CacheField<A> | number;

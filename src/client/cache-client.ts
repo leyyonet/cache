@@ -1,4 +1,4 @@
-import {CacheClientLike} from "./types";
+import {CacheClientLike, CacheClientLikeDef} from "./types";
 
 export class CacheClient<C> implements CacheClientLike<C> {
     readonly provider: string;
@@ -10,5 +10,9 @@ export class CacheClient<C> implements CacheClientLike<C> {
             provider = native.constructor.name;
         }
         this.provider = provider;
+    }
+
+    get flattenGeneric$(): CacheClientLikeDef {
+        return this;
     }
 }

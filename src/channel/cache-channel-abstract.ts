@@ -1,6 +1,6 @@
 import {cacheUtil, CacheUtil} from "../util";
 import {CacheClientLike} from "../client";
-import {CacheID, TR} from "./types";
+import {CacheChannelDef, CacheID, TR} from "./types";
 import {CacheChannel} from "./types";
 import {CachePropCompleted, CachePropReadonly} from "../prop";
 import {CacheHash} from "../hash";
@@ -35,5 +35,8 @@ export abstract class CacheChannelAbstract<A extends TR, N extends CacheID, C> i
     abstract get set(): CacheSet<A, N, C>;
     abstract get invalidator(): PropInvalidator<A, N, C>;
     // endregion plugins
+    get flattenGeneric$(): CacheChannelDef {
+        return this as CacheChannelDef;
+    }
 
 }

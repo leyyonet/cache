@@ -2,7 +2,7 @@ import {CacheID, CacheKey, TR} from "../channel";
 import {CacheInvalidator} from "../invalidator";
 
 export interface CacheSet<A extends TR, N extends CacheID, C> {
-
+    get flattenGeneric$(): CacheSetDef;
     // region add
     add(key: CacheKey<A>, members: Array<N>): Promise<CacheInvalidator<A, N, C, number>>;
     // endregion add
@@ -21,6 +21,7 @@ export interface CacheSet<A extends TR, N extends CacheID, C> {
     areMembers(key: CacheKey<A>, members: Array<N>): Promise<Record<string, boolean>>;
     // endregion exists
 }
+export type CacheSetDef = CacheSet<TR, string, unknown>;
 export interface CacheSetMembers {
     items: Array<string>;
     duplicated?: boolean;

@@ -1,5 +1,5 @@
 import {CacheInvalidator} from "./types";
-import {CacheChannel, CacheID, TR} from "../channel";
+import {CacheChannel, CacheChannelDef, CacheID, TR} from "../channel";
 
 class CacheInvalidatorImpl<A extends TR, N extends CacheID, C, T> implements CacheInvalidator<A, N, C, T> {
 
@@ -15,7 +15,7 @@ class CacheInvalidatorImpl<A extends TR, N extends CacheID, C, T> implements Cac
         this._dummy = dummy;
     }
 
-    add(v1: CacheID|Array<CacheID>, channel?: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, T> {
+    add(v1: CacheID|Array<CacheID>, channel?: CacheChannelDef): CacheInvalidator<A, N, C, T> {
         if (this._dummy) {
             return this;
         }

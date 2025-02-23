@@ -1,5 +1,5 @@
 import {CacheBaseAbstract} from "../base";
-import {CacheSet, CacheSetMembers} from "./types";
+import {CacheSet, CacheSetDef, CacheSetMembers} from "./types";
 import {CacheInvalidator} from "../invalidator";
 import {CacheID, CacheKey, TR} from "../channel";
 
@@ -18,7 +18,9 @@ export abstract class CacheSetAbstract<A extends TR, N extends CacheID, C> exten
             .filter((m, index, array) => array.indexOf(m) === index);
         return {items, duplicated: members.length > items.length};
     }
-
+    get flattenGeneric$(): CacheSetDef {
+        return this as CacheSetDef;
+    }
     // region add
     abstract add(key: CacheKey<A>, members: Array<N>): Promise<CacheInvalidator<A, N, C, number>>;
     // endregion add
