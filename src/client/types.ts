@@ -1,8 +1,32 @@
-export interface CacheClientLike<C> {
-    readonly provider: string;
-    readonly native: C;
+import {CacheProvider, CacheProviderInfo} from "../provider";
+import {CacheInfoCheck} from "../types";
 
-    get flattenGeneric$(): CacheClientLikeDef;
+export interface CacheClient {
+    readonly num: number;
+    readonly provider: CacheProvider;
+    readonly description: string;
+    readonly native: unknown;
+
+    setName(name: string): Promise<boolean>;
+
+    getName(): Promise<string>;
+
+    getId(): Promise<string | number>;
+
+    getInfo(): Promise<unknown>;
+
+    info(check: CacheInfoCheck): Promise<CacheClientInfo>;
 }
 
-export type CacheClientLikeDef = CacheClientLike<unknown>;
+export interface CacheClientInfo {
+    num: number
+    provider?: CacheProviderInfo;
+    name?: string;
+    description?: string;
+    id?: string | number;
+    bulk?: unknown;
+}
+
+export type CacheSecureClientCommand<T> = () => Promise<T>;
+
+export type CacheClientCreatorLambda = (native: unknown, description?: string) => CacheClient;

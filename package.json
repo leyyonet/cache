@@ -1,6 +1,6 @@
 {
   "name": "@leyyo/cache",
-  "version": "1.0.8",
+  "version": "1.1.1",
   "description": "Common cache library",
   "keywords": [
     "cache",
@@ -19,8 +19,15 @@
   "main": "dist/index.js",
   "scripts": {
     "clear": "rimraf dist",
+    "clearObg": "rimraf dist && rimraf dist2",
     "lint": "eslint src/**/*.ts",
-    "build": "npm run clear && tsc && [ -d \"./src/assets\" ] && cp -rv src/assets dist/assets/ || echo \"no assets\" ",
+    "asset": "node -r ts-node/register commands/assets.ts",
+    "asset2": "[ -d \"./src/assets\" ] && cp -rv src/assets dist/assets/ || echo \"no assets\"",
+    "_tsc1": "tsc",
+    "_tsc2": "tsc --outDir \"dist\"",
+    "_obs": "javascript-obfuscator ./dist --output ./dist2 --compact false --rename-properties false --target node",
+    "build": "npm run clear && npm run _tsc1 && npm run asset ",
+    "buildObg": "npm run clearObg && npm run _tsc2 && npm run _obs && npm run asset",
     "test": "jest --config=jest.json",
     "test:watch": "jest --watch --config=jest.json",
     "test:coverage": "jest --config=jest.json --coverage --coverageDirectory=coverage",
@@ -40,6 +47,7 @@
     "eslint-config-prettier": "^10.0.1",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-node": "^11.1.0",
+    "javascript-obfuscator": "^4.1.1",
     "jest": "^29.3.1",
     "prettier": "^3.5.1",
     "rimraf": "^6.0.1",
@@ -48,6 +56,6 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@leyyo/builder": "^3.1.3"
+    "@leyyo/builder": "^3.1.5"
   }
 }

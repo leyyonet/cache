@@ -1,46 +1,31 @@
-import {TR} from "../channel";
-import {
-    CacheOptExpiryModeType,
-    CacheOptExpirySaveType,
-    CacheOptExpirySetType,
-    CacheOptExpiryUnitType,
-    CacheOptIncDataType,
-    CacheOptIncDirType,
-    CacheOptSetModeType
-} from "../command";
+import {ExpiryMode, ExpirySpan, ExpiryUnit, SaveMode, SaveSpan} from "../literal";
+import {CacheExpiryUnitTuple} from "../command";
 
-export interface CachePropGlobal<A extends TR> {
+export interface CachePropData {
     enabled: boolean;
-    property: keyof A;
-    expirySave: CacheOptExpirySaveType;
-    expirySet: CacheOptExpirySetType;
-    expiryMode: CacheOptExpiryModeType;
-    expiryUnit: CacheOptExpiryUnitType;
-    expiryValue: number;
-    setMode: CacheOptSetModeType;
-    incrementData: CacheOptIncDataType;
-    incrementDir: CacheOptIncDirType,
-    incrementValue: number;
+    property: unknown;
+    saveMode: SaveMode;
+    saveSpan: SaveSpan;
+    expiryMode: ExpiryMode;
+    expirySpan: ExpirySpan;
+    milliseconds: number;
+    expiryUnit: ExpiryUnit;
 }
-export interface CachePropChannel<A extends TR> extends CachePropGlobal<A> {
-    prefix: string;
-}
-export interface CachePropCompleted<A extends TR> extends CachePropChannel<A> {
-    enable(): void;
-    disable(): void;
-    expiryAs(unit: CacheOptExpiryUnitType): number;
-    expiryAsSeconds(): number;
-    expiryAsMilliseconds(): number;
-    expiryAsMinutes(): number;
-}
-export type CachePropReadonly<A extends TR>  = Readonly<CachePropCompleted<A>>;
 
-export interface CachePropLike<A extends TR> extends Readonly<CachePropGlobal<A>> {
-    readonly prefix: string;
-    enable(): void;
-    disable(): void;
-    expiryAs(unit: CacheOptExpiryUnitType): number;
-    expiryAsSeconds(): number;
-    expiryAsMilliseconds(): number;
-    expiryAsMinutes(): number;
+export interface CachePropSecure {
+    $expiryMode(mode: ExpiryMode): ExpiryMode;
+
+    $expirySpan(span: ExpirySpan): ExpirySpan;
+
+    $expiryUnit(unit: ExpiryUnit): ExpiryUnit;
+
+    $ttl(tuple: CacheExpiryUnitTuple): number;
+
+    $timestamp(tuple: CacheExpiryUnitTuple): number;
+
+    $saveMode(mode: SaveMode): SaveMode;
+
+    $saveSpan(span: SaveSpan): SaveSpan;
 }
+
+export type CachePropValidator = (value: unknown) => unknown;

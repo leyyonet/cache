@@ -1,2 +1,5 @@
+import {CacheHub} from "./types";
+import {CacheHubImpl} from "./cache-hub-impl";
+
 export * from './types';
-export * from './cache-hub';
+export const cacheHub: CacheHub = new CacheHubImpl();

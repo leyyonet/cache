@@ -32,6 +32,7 @@
 /build/
 # dist directory
 /dist/
+/dist2/
 # Dependency directories
 /node_modules/
 /jspm_packages/

@@ -1,268 +1,134 @@
-import {CacheID} from "../channel";
+import {ExpiryMode, ExpiryUnit, SaveMode, SaveSpan} from "../literal";
+import {KeyAny, OneOrMore, TR} from "../types";
 
-// region expiry-set
+// region parts
 /**
- * Choice expire behaviour during saving
+ * Cache key options when key can not be provided
+ *
+ * if {opt.key: string} => key is used, otherwise key can be picked in object via property: {@link CacheOptProperty}
+ *
  * */
-export interface CacheOptExpirySet {
-    /**
-     * Expire after now [EX, PX]
-     * */
-    after: true;
-
-    /**
-     * Expire at given timestamp [EXAT, PXAT]
-     * */
-    timestamp: true;
-}
-/**
- * Choice expire behaviour during saving, <only one>
- * */
-export type CacheOptExpirySetOne = MaximumOneOf<CacheOptExpirySet>;
-export type CacheOptExpirySetType = keyof CacheOptExpirySet;
-// endregion expiry-set
-
-// region expiry-save
-/**
- * Choice expire behaviour during saving
- * */
-export interface CacheOptExpirySave extends CacheOptExpirySet {
-    /**
-     * Keeps TTL (remaining time), it's not changed {KEEPTTL}
-     * */
-    keepTTL: true;
-}
-/**
- * Choice expire behaviour during saving, <only one>
- * */
-export type CacheOptExpirySaveOne = MaximumOneOf<CacheOptExpirySave>;
-export type CacheOptExpirySaveType = keyof CacheOptExpirySave;
-// endregion expiry-save
-
-// region expiry-mode
-export interface CacheOptExpiryMode {
-    /**
-     * Set expiry always
-     * */
-    always: true;
-
-    /**
-     * Set expiry only when the key has no expiry
-     * */
-    whenAbsent: true; // NX
-
-    /**
-     * Set expiry only when the key has an existing expiry
-     * */
-    whenExists: true; // XX
-
-    /**
-     * Set expiry only when the new expiry is greater than current one
-     * */
-    whenGreaterThan: true; // GT
-
-    /**
-     * Set expiry only when the new expiry is less than current one
-     * */
-    whenLessThan: true; // LT
-}
-
-export type CacheOptExpiryModeOne = MaximumOneOf<CacheOptExpiryMode>;
-export type CacheOptExpiryModeType = keyof CacheOptExpiryMode;
-// endregion expiry-mode
-
-// region set-mode
-export interface CacheOptSetMode {
-    /**
-     * Always set
-     * */
-    always: true;
-    /**
-     * Only set the key if it does not already exist. [NX]
-     * */
-    whenAbsent: true;
-    /**
-     * Only set the key if it already exists. [XX]
-     * */
-    whenExists: true;
-}
-
-export type CacheOptSetModeOne = MaximumOneOf<CacheOptSetMode>;
-export type CacheOptSetModeType = keyof CacheOptSetMode;
-// endregion set-mode
-
-// region expiry-unit
-export interface CacheOptExpiryUnit<T> {
-    seconds: T;
-    milliseconds: T;
-    minutes: T;
-}
-export type CacheOptExpiryUnitType = keyof CacheOptExpiryUnit<string>;
-// endregion expiry-unit
-
-// region expiry-value
-export type CacheOptExpiryValue = CacheOptExpiryUnit<number>;
-export type CacheOptExpiryValueOne = MaximumOneOf<CacheOptExpiryValue>;
-// endregion expiry-value
-
-// region expiry-ttl
-export type CacheOptExpiryTtl = CacheOptExpiryUnit<true>;
-export type CacheOptExpiryTtlOne = MaximumOneOf<CacheOptExpiryTtl>;
-// endregion expiry-ttl
-
-// region set-expiry
-/**
- * Expire time settings
- * */
-export interface CacheOptSetExpiry {
-    /**
-     * Expire after now, as seconds
-     * */
-    afterSec: number; //EX
-
-    /**
-     * Expire at given timestamp, as seconds
-     * */
-    expiresAtSec: number; //EXAT
-
-    /**
-     * Expire after now, as milliseconds
-     * */
-    afterMS: number; //PX
-
-    /**
-     * Expire at given timestamp, as milliseconds
-     * */
-    expiresAtMS: number; //PXAT
-
-    /**
-     * Expire after now, as minutes
-     * */
-    afterMin: number; //EX
-
-    /**
-     * Expire at given timestamp, as minutes
-     * */
-    expiresAtMin: number; //EXAT
-
-    /**
-     * Keeps TTL (remaining time), it's not changed
-     * */
-    keepTtl: true; //KEEPTTL
-}
-export type CacheOptSetExpiryOne = MaximumOneOf<CacheOptSetExpiry>;
-// endregion set-expiry
-
-// region key
 export interface CacheOptKey {
-    key: CacheID;
+    key?: KeyAny;
 }
 
-export type CacheOptKeyOne = MaximumOneOf<CacheOptKey>;
-// endregion key
+/**
+ * Cache property of data options when channel uses different property
+ *
+ * If key is empty then this values is used to grab key value from document, ie: doc>code, doc>country etc.
+ * - `filled`  => key is generated from `doc.{property}`
+ * - Default   => {@link CacheSegmentProp#property}
+ *
+ * */
+export interface CacheOptProperty<A extends TR = TR> {
+    property?: OneOrMore<keyof A>;
+}
 
-// region return
-export interface CacheOptSetReturn {
+
+export type CacheExpiryUnitTuple = [number, ExpiryUnit?];
+
+/**
+ * Time unit option
+ *
+ * Cases:
+ * 1 - for getting ttl, remaining time
+ * Changes result timestamp span
+ * - `seconds`      => return remaining seconds
+ * - `milliseconds` => return remaining milliseconds
+ * - `minutes`      => return remaining minutes
+ *
+ * 2- for getting timestamp or exact expire time
+ * Changes result timestamp span
+ * - `seconds`      => return timestamp as seconds
+ * - `milliseconds` => return timestamp as milliseconds
+ * - `minutes`      => return timestamp as minutes
+ *
+ * - Default        => {@link CachePropData#expiryUnit}
+ * */
+export interface CacheOptExpiryUnit {
+    unit?: ExpiryUnit;
+}
+
+/**
+ * Changes expire time span, it 2-length tuple as [600, 'seconds']
+ *
+ * Cases:
+ *
+ * 1 - for setting ttl, remaining time
+ * Changes expire time span, it 2-length tuple as [600, 'seconds']
+ * - 0 => positive time value, if it's empty, negative,... then default is used from {@link CacheSegmentProp#milliseconds}
+ * - 1 => time unit as {@link ExpiryUnit}, if it's empty then default is used from {@link CacheSegmentProp#expiryUnit}
+ * - .... `seconds`      => remaining seconds {@link CmdBasicSetWithKey#span}
+ * - .... `milliseconds` => remaining milliseconds {@link CmdBasicSetWithKey#span}
+ * - .... `minutes`      => remaining minutes {@link CmdBasicSetWithKey#span}
+ *
+ * 2 - for setting timestamp or exact expire time
+ * - 0 => positive time value, if it's empty, negative,... then default is used from {@link CacheSegmentProp#milliseconds}
+ * - 1 => time unit as {@link ExpiryUnit}, if it's empty then default is used from {@link CacheSegmentProp#expiryUnit}
+ * - .... `seconds`      => seconds as timestamp
+ * - .... `milliseconds` => milliseconds as timestamp
+ * - .... `minutes`      => minutes as timestamp
+ *
+ * 3 - for saving, timestamp and ttl option is known via {@link CacheOptSaveSpan}
+ *
+ * */
+export interface CacheOptExpiryUnitTuple {
+    expiry?: CacheExpiryUnitTuple;
+}
+
+/**
+ * Changes changing expire time strategy
+ * - `always`  => always
+ * - `absent`  => When the key has no expiry
+ * - `exists`  => When the key has an existing expiry
+ * - `greater` => When the new expiry is greater than current one
+ * - `less`    => When the new expiry is less than current one
+ *
+ * - Default   => {@link CacheSegmentProp#expiryMode}
+ * */
+export interface CacheOptExpiryMode {
+    mode?: ExpiryMode;
+}
+
+/**
+ *
+ * Changes saving strategy
+ * - `always` => always
+ * - `absent` => When the key does not already exist
+ * - `exists` => When the key already exists
+ * - Default  => {@link CacheSegmentProp#saveMode}
+ *
+ * */
+export interface CacheOptSaveMode {
+    mode?: SaveMode;
+}
+
+/**
+ *
+ * Changes expire time span
+ * - `ttl`        => time value is evaluated as ttl, so expired at will be now + value
+ * - `timestamp`  => time value is evaluated as timestamp (exact time)
+ * - `keep-ttl`   => keeps TTL (remaining time) of key (if exists), it's not changed
+ * - `persistent` => Removes TTL and set it as persistent
+ *
+ * Notes:
+ * - Time value is coming from {@link CacheOptExpiryUnitTuple}
+ * - for `keep-ttl`and `persistent` cases, time will not be used
+ *
+ * */
+export interface CacheOptSaveSpan {
+    span?: SaveSpan;
+}
+
+export interface CacheOptReturnPrevious {
     /**
      * Return the old string stored at key, or null if key did not exist.
      * An error is returned and SET aborted if the value stored at key is not a string
      * */
     returnPrevious?: true;
 }
-// endregion return
 
-
-
-// region increment-data
-
-/**
- * Increment data type options
- * */
-export interface CacheOptIncData {
-    /**
-     * Integer type, if it's double than it will be floored
-     * */
-    integer: true;
-
-    /**
-     * Double type
-     * */
-    float: true;
-}
-/**
- * Increment data type options for only one
- *
- * @see CacheOptIncDir
- * */
-export type CacheOptIncDataOne = MaximumOneOf<CacheOptIncData>;
-export type CacheOptIncDataType = keyof CacheOptIncData;
-// endregion increment-data
-
-
-// region increment-direction
-/**
- * Increment direction options
- * */
-export interface CacheOptIncDir {
-    /**
-     * incremented value
-     * */
-    increment: number;
-    /**
-     * decremented value
-     * */
-    decrement: number;
-}
-
-/**
- * Increment direction options for only one
- *
- * @see CacheOptIncDir
- * */
-export type CacheOptIncDirOne = MaximumOneOf<CacheOptIncDir>;
-export type CacheOptIncDirType = keyof CacheOptIncDir;
-// endregion increment-direction
-
-export interface CacheExpireResult {
-    unit: CacheOptExpiryUnitType;
-    value: number;
-}
-
-// region commands
-/**
- * Expire command options
- *
- * @see CacheOptExpiryValueOne
- * @see CacheOptExpiryModeOne
- * */
-export type CacheCmdExpire = CacheOptExpiryValueOne & CacheOptExpiryModeOne;
-/**
- * Expire at command options
- *
- * @see CacheOptExpiryValueOne
- * @see CacheOptExpiryModeOne
- * */
-export type CacheCmdExpireAt = CacheOptExpiryValueOne & CacheOptExpiryModeOne;
-/**
- * Get ttl command options
- *
- * @see CacheOptExpiryTtlOne
- * */
-export type CacheCmdTtl = CacheOptExpiryTtlOne;
-
-/**
- * Increment options with data type and direction
- *
- * @see CacheOptIncDataOne
- * @see CacheOptIncDirOne
- * */
-export type CacheCmdInc = CacheOptIncDataOne & CacheOptIncDirOne;
-
-
-/**
- * Copy key option
- * */
-export interface CacheCmdCopy {
+export interface CacheOptCopy {
     /**
      * Destination database index
      * */
@@ -274,13 +140,55 @@ export interface CacheCmdCopy {
     replace?: boolean;
 }
 
-export type CacheCmdSet = CacheOptKeyOne & CacheOptSetModeOne & CacheOptSetExpiryOne & CacheOptSetReturn;
+export interface CacheResultInfo {
+    /**
+     * Full path of key
+     * */
+    full: string;
+    /**
+     * The key exists or not
+     * */
+    exists: boolean;
+    /**
+     * Type of key
+     * */
+    type: string;
+    /**
+     * Ttl of key as milliseconds
+     * */
+    ttl: number;
 
-// endregion commands
+    /**
+     * Value of key, for hash: [field, value], for set: members
+     * */
+    value: unknown;
+}
 
-// region utility
-// todo add to leyyo
+
+// endregion parts
+
+
+/*
+*
+* // todo add to leyyo
 export type MaximumOneOf<T, K extends keyof T = keyof T> = K extends keyof T ? {
-    [P in K]?: T[K];
+    [P in K]: T[K];
 } & Partial<Record<Exclude<keyof T, K>, never>> : never;
-// endregion utility
+
+
+type ValueOf<Obj> = Obj[keyof Obj];
+type OneOnly<Obj, Key extends keyof Obj> = Omit<Obj, Exclude<keyof Obj, Key>> | Pick<Obj, Key>;
+type OneOfByKey<Obj> = { [key in keyof Obj]: OneOnly<Obj, key> };
+export type OneOf<Obj> = ValueOf<OneOfByKey<Obj>>;
+
+export type Xor<a, b> =
+    | XorIn<a & { [k in keyof b]?: undefined }>
+    | XorIn<b & { [k in keyof a]?: undefined }>;
+type XorIn<t> = { [k in keyof t]: t[k] } & unknown;
+
+type Values<V> = V[keyof V];
+
+type ObjectToAnyPair<V> = Values<{ [K in keyof V]: { [K1 in K]: V[K1] } }>
+
+* */
+

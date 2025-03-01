@@ -1,28 +1,42 @@
-import {CacheID, CacheKey, TR} from "../channel";
-import {CacheInvalidator} from "../invalidator";
+import {CacheInvalidatorResult} from "../invalidator";
+import {Id, KeyAny, TR} from "../types";
+import {ShiftMain, ShiftSecureFlat} from "../secure";
 
-export interface CacheSet<A extends TR, N extends CacheID, C> {
-    get flattenGeneric$(): CacheSetDef;
+export interface CacheSet<A extends TR, N extends Id> extends ShiftSecureFlat<CacheSetSecure<A, N>, CacheSetDef> {
+
     // region add
-    add(key: CacheKey<A>, members: Array<N>): Promise<CacheInvalidator<A, N, C, number>>;
+    add(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, number>>;
+
     // endregion add
 
     // region remove
-    remove(key: CacheKey<A>, members: Array<N>): Promise<CacheInvalidator<A, N, C, number>>;
+    remove(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, number>>;
+
     // endregion remove
 
     // region members
-    members(key: CacheKey<A>): Promise<Array<string>>;
-    length(key: CacheKey<A>): Promise<number>;
+    listMembers(key: KeyAny): Promise<Array<string>>;
+
+    getLength(key: KeyAny): Promise<number>;
+
     // endregion members
 
     // region exists
-    isMember(key: CacheKey<A>, member: N): Promise<boolean>;
-    areMembers(key: CacheKey<A>, members: Array<N>): Promise<Record<string, boolean>>;
+    exists(key: KeyAny, member: N): Promise<boolean>;
+
+    existMore(key: KeyAny, members: Array<N>): Promise<Record<string, boolean>>;
+
     // endregion exists
 }
-export type CacheSetDef = CacheSet<TR, string, unknown>;
-export interface CacheSetMembers {
-    items: Array<string>;
-    duplicated?: boolean;
+
+export interface CacheSetSecure<A extends TR, N extends Id> extends ShiftMain<CacheSet<A, N>> {
+
+    $add(key: string, members: Array<string>): Promise<number>;
+    $remove(key: string, members: Array<string>): Promise<number>;
+    $list(key: string): Promise<Array<string>>;
+    $length(key: string): Promise<number>;
+    $exist(key: string, members: Array<string>): Promise<Array<boolean>>;
+
 }
+
+export type CacheSetDef = CacheSet<TR, Id>;

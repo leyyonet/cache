@@ -1,26 +1,120 @@
-import {CacheChannel, CacheID, TR} from "../channel";
+import {IdAny, IdAnyArray, OneOrMore, TR} from "../types";
+import {CacheChannelDef} from "../channel";
+import {ShiftMain, ShiftSecure} from "../secure";
 
-export interface DummyInvalidator<A extends TR, N extends CacheID, C> {
-    getZero(channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, number>;
-    getNumber(channel: CacheChannel<A, N, C>, result: number): CacheInvalidator<A, N, C, number>;
-    getUndefined<R>(channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, R>;
-    getNull<R>(channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, R>;
-    getArray<R>(channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, Array<R>>;
-    getRecord<R>(channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, Record<string, R>>;
-    getTrue(channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, boolean>;
-    getFalse(channel: CacheChannel<A, N, C>): CacheInvalidator<A, N, C, boolean>;
+export interface CacheInvalidator<A extends TR> extends ShiftSecure<CacheInvalidatorSecure<A>> {
+    success<T>(result: T, keys?: OneOrMore<string>, command?: string): CacheInvalidatorResult<A, T>;
+
+    failed<T>(error: string | Error, keys?: OneOrMore<string>, command?: string): CacheInvalidatorResult<A, T>;
+
+    ignoreZero(error?: string | Error, command?: string): CacheInvalidatorResult<A, number>;
+
+    ignoreNull<T>(error?: string | Error, command?: string): CacheInvalidatorResult<A, T>;
+
+    ignoreArray<T>(error?: string | Error, command?: string): CacheInvalidatorResult<A, Array<T>>;
+
+    ignoreRecord<R>(error?: string | Error, command?: string): CacheInvalidatorResult<A, Record<string, R>>;
+
+    ignoreTrue(error?: string | Error, command?: string): CacheInvalidatorResult<A, boolean>;
+
+    ignoreFalse(error?: string | Error, command?: string): CacheInvalidatorResult<A, boolean>;
+
+    disabledZero(): CacheInvalidatorResult<A, number>;
+
+    disabledNull<T>(): CacheInvalidatorResult<A, T>;
+
+    disabledArray<R>(): CacheInvalidatorResult<A, Array<R>>;
+
+    disabledRecord<T>(): CacheInvalidatorResult<A, Record<string, T>>;
+
+    disabledTrue(): CacheInvalidatorResult<A, boolean>;
+
+    disabledFalse(): CacheInvalidatorResult<A, boolean>;
 }
 
-export interface CacheInvalidator<A extends TR, N extends CacheID, C, T> {
-    readonly result: T;
-    readonly keys: Array<string>;
-    add(ids: CacheID|Array<CacheID>): CacheInvalidator<A, N, C, T>;
-    add(ids: CacheID|Array<CacheID>, channel: CacheChannel<TR, string, unknown>): CacheInvalidator<A, N, C, T>;
-    clear(id: CacheID): CacheInvalidator<A, N, C, T>;
-    clear(ids: Array<CacheID>): CacheInvalidator<A, N, C, T>;
+export interface CacheInvalidatorSecure<A extends TR> extends ShiftMain<CacheInvalidator<A>> {
 }
 
-export interface PropInvalidator<A extends TR, N extends CacheID, C> {
-    add(memberFull: string, identifiers: Array<CacheID>): void;
-    remove(identifier: CacheID): void;
+export interface CacheInvalidatorFromSelf<A extends TR> {
+    resource: 'self',
+    property?: OneOrMore<keyof A | string>, // use from options
+}
+
+export interface CacheInvalidatorFromChannel<A extends TR> {
+    resource: 'consumer',
+    property: OneOrMore<keyof A | string>,
+    consumer: CacheInvalidatorConsumer,
+}
+
+export interface CacheInvalidatorFromChannelId<A extends TR> {
+    resource: 'consumerId',
+    property: OneOrMore<keyof A | string>,
+    consumerId: string,
+}
+
+export type CacheInvalidatorFrom<A extends TR> =
+    CacheInvalidatorFromSelf<A>
+    | CacheInvalidatorFromChannel<A>
+    | CacheInvalidatorFromChannelId<A>;
+
+export interface CacheInvalidatorResult<A extends TR, T> {
+    readonly keys: Array<string>,
+    readonly disabled?: boolean;
+    readonly error?: string | Error;
+    readonly success?: boolean;
+    readonly result?: T;
+    readonly command?: string;
+
+    add(id: IdAny): CacheInvalidatorResult<A, T>;
+
+    add(id: IdAny, channel: CacheChannelDef): CacheInvalidatorResult<A, T>;
+
+    add(id: IdAny, channelId: string): CacheInvalidatorResult<A, T>;
+
+    addMore(ids: IdAnyArray, channel: CacheChannelDef): CacheInvalidatorResult<A, T>;
+
+    addMore(ids: IdAnyArray, channelId: string): CacheInvalidatorResult<A, T>;
+
+    addFromRelations(doc: Partial<A>, relations?: OneOrMore<CacheInvalidatorFrom<A>>): CacheInvalidatorResult<A, T>;
+
+    delete(id: IdAny): CacheInvalidatorResult<A, T>;
+
+    deleteMore(ids: IdAnyArray): CacheInvalidatorResult<A, T>;
+}
+
+export interface CacheInvalidatorRepo {
+    notify(dataOwner: string, dataFullKey: string, idOwner: string, idBasicKeys: Array<string>): void;
+
+    invalidate(idOwner: string, idFullKey: string): void;
+}
+
+// Record<idBasicKey, Record<dataFullKey, dataOwner>>
+export type CacheInvalidatorNotifyRecords = Record<string, Record<string, string>>;
+
+export interface CacheInvalidatorNotifyRequest {
+    from?: string;
+    records: CacheInvalidatorNotifyRecords;
+}
+
+// Array<basicKeys>
+export type CacheInvalidatorInvalidateIds = Array<string>;
+
+export interface CacheInvalidatorInvalidateRequest {
+    from?: string;
+    ids: CacheInvalidatorInvalidateIds;
+}
+
+export interface CacheInvalidatorDeleteRequest {
+    from?: string;
+    ids: Array<string>; // full keys
+}
+
+export interface CacheInvalidatorConsumer {
+    readonly id: string;
+
+    $invalidatorForNotify(data: CacheInvalidatorNotifyRequest): void;
+
+    $invalidatorForInvalidate(data: CacheInvalidatorInvalidateRequest): void;
+
+    $invalidatorForDelete(data: CacheInvalidatorDeleteRequest): void;
 }
