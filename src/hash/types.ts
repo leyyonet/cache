@@ -13,16 +13,14 @@ import {
 import {CacheInvalidatorResult} from "../invalidator";
 import {CacheOptExpiryMode, CacheOptExpiryUnit, CacheOptExpiryUnitTuple} from "../command";
 import {ShiftMain, ShiftSecureFlat} from "../secure";
+import {ExpiryMode} from "../literal";
 
 export interface CacheHash<A extends TR, N extends Id> extends ShiftSecureFlat<CacheHashSecure<A, N>, CacheHashDef> {
 
     // region get
-    getValue(key: KeyAny, field: FieldId<A>): Promise<FieldValue<A>>;
-
-    listValues(key: KeyAny, fields: FieldId<A>): Promise<FieldValueArray<A>>;
-
-    getDoc(key: KeyAny, fields: FieldIddArray<A>): Promise<Partial<A>>;
-
+    getValue(key: KeyAny, field: FieldId<A>): Promise<CacheInvalidatorResult<A, string>>;
+    getMore(key: KeyAny, fields: FieldIddArray<A>): Promise<CacheInvalidatorResult<A, Record<string, string>>>;
+    getAll(key: KeyAny): Promise<CacheInvalidatorResult<A, Record<string, string>>>;
     // endregion get
 
     // region set
@@ -42,27 +40,28 @@ export interface CacheHash<A extends TR, N extends Id> extends ShiftSecureFlat<C
     // endregion delete
 
     // region exists
-    exists(key: KeyAny, fields: FieldIddArray<A>): Promise<SameType<A, boolean>>;
+    exists(key: KeyAny, field: FieldId<A>): Promise<CacheInvalidatorResult<A, boolean>>;
+    existMore(key: KeyAny, fields: FieldIddArray<A>): Promise<CacheInvalidatorResult<A, Array<boolean>>>;
 
     // endregion exists
 
     // region expire
-    setTtl(key: KeyAny, fields: FieldIddArray<A>, opt?: CmdHashSetTtl): Promise<SameType<A, CacheHashExpireResult>>;
+    setTtl(key: KeyAny, fields: FieldIddArray<A>, opt?: CmdHashSetTtl): Promise<CacheInvalidatorResult<A, Record<string, CacheHashExpireResult>>>;
 
-    setTimestamp(key: KeyAny, fields: FieldIddArray<A>, opt?: CmdHashSetTimestamp): Promise<SameType<A, CacheHashExpireResult>>;
+    setTimestamp(key: KeyAny, fields: FieldIddArray<A>, opt?: CmdHashSetTimestamp): Promise<CacheInvalidatorResult<A, Record<string, CacheHashExpireResult>>>;
 
-    getTimestamp(key: KeyAny, fields: FieldIddArray<A>, opt?: CmdHashGetTimestamp): Promise<SameType<A, number>>;
+    getTimestamp(key: KeyAny, fields: FieldIddArray<A>, opt?: CmdHashGetTimestamp): Promise<CacheInvalidatorResult<A, Record<string, number>>>;
 
-    getTtl(key: KeyAny, fields: FieldIddArray<A>, opt?: CmdHashGetTtl): Promise<SameType<A, number>>;
+    getTtl(key: KeyAny, fields: FieldIddArray<A>, opt?: CmdHashGetTtl): Promise<CacheInvalidatorResult<A, Record<string, number>>>;
 
-    persist(key: KeyAny, fields: FieldIddArray<A>): Promise<SameType<A, number>>;
+    persist(key: KeyAny, fields: FieldIddArray<A>): Promise<CacheInvalidatorResult<A, Record<string, number>>>;
 
     // endregion expire
 
     // region field-values
-    listFields(key: KeyAny): Promise<FieldIddArray<A>>;
+    listFields(key: KeyAny): Promise<CacheInvalidatorResult<A, FieldIddArray<A>>>;
 
-    getLength(key: KeyAny): Promise<number>;
+    getLength(key: KeyAny): Promise<CacheInvalidatorResult<A, number>>;
 
     // endregion field-values
 }
@@ -72,21 +71,21 @@ export interface CacheHashSecure<A extends TR, N extends Id> extends ShiftMain<C
 
     $delete(key: string, fields: Array<string>): Promise<number>;
 
+    $getOne(key: string, field: string): Promise<string>;
     $get(key: string, fields: Array<string>): Promise<Array<string>>;
-
     $getAll(key: string): Promise<Record<string, string>>;
 
-    $exists(key: string, fields: Array<string>): Promise<Record<string, number>>;
+    $exists(key: string, field: string): Promise<boolean>;
+    $existsMore(key: string, fields: Array<string>): Promise<Record<string, boolean>>;
 
-    $setTtl(key: string, fields: Array<string>, opt?: CmdHashSetTtl): Promise<Record<string, CacheHashExpireResult>>;
+    $setTtl(key: string, fields: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheHashExpireResult>>;
 
-    $setTimestamp(key: string, fields: Array<string>, opt?: CmdHashSetTimestamp): Promise<Record<string, CacheHashExpireResult>>;
+    $setTimestamp(key: string, fields: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheHashExpireResult>>;
 
-    $getTimestamp(key: string, fields: Array<string>, opt?: CmdHashGetTimestamp): Promise<Record<string, number>>;
+    $getTimestamp(key: string, fields: Array<string>): Promise<Array<number>>;
+    $getTtl(key: string, fields: Array<string>): Promise<Array<number>>;
 
-    $getTtl(key: string, fields: Array<string>, opt?: CmdHashGetTtl): Promise<Record<string, number>>;
-
-    $persist(key: string, fields: Array<string>): Promise<Record<string, number>>;
+    $persist(key: string, fields: Array<string>): Promise<Array<number>>;
 
     $fields(key: string): Promise<Array<string>>;
 

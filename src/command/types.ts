@@ -1,6 +1,28 @@
 import {ExpiryMode, ExpiryUnit, SaveMode, SaveSpan} from "../literal";
 import {KeyAny, OneOrMore, TR} from "../types";
 
+/**
+ * # -2 if the key does not exist.
+ * # -1 if the key exists but has no associated expire.
+ * # TTL or timestamp
+ * */
+export type CacheResultGetExpiry = -1|-2|number;
+
+/**
+ * Integer reply: -2 if no such field exists in the provided hash key, or the provided key does not exist.
+ * Integer reply: 0 if the specified NX | XX | GT | LT condition has not been met.
+ * Integer reply: 1 if the expiration time was set/updated.
+ * Integer reply: 2 when HEXPIRE/HPEXPIRE is called with 0 seconds/milliseconds or when HEXPIREAT/HPEXPIREAT is called with a past Unix time in seconds/milliseconds.
+ * */
+export type CacheResultSetExpiry = -2|0|1|2;
+
+/**
+ * Integer reply: -2 if no such field exists in the provided hash key, or the provided key does not exist.
+ * Integer reply: -1 if the field exists but has no associated expiration set.
+ * Integer reply: 1 the expiration was removed.
+ * */
+export type CacheResultPersist = -2|-1|1;
+
 // region parts
 /**
  * Cache key options when key can not be provided

@@ -148,7 +148,7 @@ export abstract class CacheChannelAbstract<A extends TR, N extends Id> implement
                             // delete data keys
                             if (dataOwner === this.id) {
                                 this.basic.$secure
-                                    .$delete(dataFullKeys)
+                                    .$deleteMore(dataFullKeys)
                                     .then()
                                     .catch(e => {
                                         // todo
@@ -165,7 +165,7 @@ export abstract class CacheChannelAbstract<A extends TR, N extends Id> implement
 
                         // delete invalidator key
                         this.basic.$secure
-                            .$delete([full])
+                            .$delete(full)
                             .then()
                             .catch(e => {
                                 // todo
@@ -193,7 +193,7 @@ export abstract class CacheChannelAbstract<A extends TR, N extends Id> implement
     $invalidatorForDelete(data: CacheInvalidatorDeleteRequest): void {
         // triggered from another channel
         this.basic.$secure
-            .$delete(data.ids)
+            .$deleteMore(data.ids)
             .then()
             .catch(e => {
                 // todo

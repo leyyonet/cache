@@ -3,11 +3,11 @@ import {CacheChannelDef} from "../channel";
 import {ShiftMain, ShiftSecure} from "../secure";
 
 export interface CacheInvalidator<A extends TR> extends ShiftSecure<CacheInvalidatorSecure<A>> {
-    success<T>(result: T, keys?: OneOrMore<string>, command?: string): CacheInvalidatorResult<A, T>;
+    success<T>(result: T, keys?: Array<string>, command?: string): CacheInvalidatorResult<A, T>;
 
-    failed<T>(error: string | Error, keys?: OneOrMore<string>, command?: string): CacheInvalidatorResult<A, T>;
+    failed<T>(error: string | Error, keys?: Array<string>, command?: string): CacheInvalidatorResult<A, T>;
 
-    ignoreZero(error?: string | Error, command?: string): CacheInvalidatorResult<A, number>;
+    ignoreZero<N extends number = number>(error?: string | Error, command?: string): CacheInvalidatorResult<A, N>;
 
     ignoreNull<T>(error?: string | Error, command?: string): CacheInvalidatorResult<A, T>;
 
@@ -18,8 +18,9 @@ export interface CacheInvalidator<A extends TR> extends ShiftSecure<CacheInvalid
     ignoreTrue(error?: string | Error, command?: string): CacheInvalidatorResult<A, boolean>;
 
     ignoreFalse(error?: string | Error, command?: string): CacheInvalidatorResult<A, boolean>;
+    ignoreText(error?: string | Error, command?: string): CacheInvalidatorResult<A, string>;
 
-    disabledZero(): CacheInvalidatorResult<A, number>;
+    disabledZero<N extends number = number>(): CacheInvalidatorResult<A, N>;
 
     disabledNull<T>(): CacheInvalidatorResult<A, T>;
 
@@ -30,6 +31,7 @@ export interface CacheInvalidator<A extends TR> extends ShiftSecure<CacheInvalid
     disabledTrue(): CacheInvalidatorResult<A, boolean>;
 
     disabledFalse(): CacheInvalidatorResult<A, boolean>;
+    disabledText(): CacheInvalidatorResult<A, string>;
 }
 
 export interface CacheInvalidatorSecure<A extends TR> extends ShiftMain<CacheInvalidator<A>> {
@@ -80,6 +82,7 @@ export interface CacheInvalidatorResult<A extends TR, T> {
     delete(id: IdAny): CacheInvalidatorResult<A, T>;
 
     deleteMore(ids: IdAnyArray): CacheInvalidatorResult<A, T>;
+    reset(value: T): CacheInvalidatorResult<A, T>;
 }
 
 export interface CacheInvalidatorRepo {
@@ -117,4 +120,9 @@ export interface CacheInvalidatorConsumer {
     $invalidatorForInvalidate(data: CacheInvalidatorInvalidateRequest): void;
 
     $invalidatorForDelete(data: CacheInvalidatorDeleteRequest): void;
+}
+
+// todo leyyo
+export type Mutable<A = Record<string, unknown>> = {
+    -readonly [K in keyof A]: A[K];
 }

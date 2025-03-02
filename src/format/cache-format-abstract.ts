@@ -1,5 +1,5 @@
 import {CacheChannel} from "../channel";
-import {Id, IdAny, IdAnyArray, IdType, OneOrMore, TR} from "../types";
+import {FieldId, FieldIddArray, Id, IdAny, IdAnyArray, IdType, OneOrMore, TR} from "../types";
 import {cacheConfig} from "../config";
 import {CacheFormat, CacheFormatBasics, CacheFormatRec, CacheFormatRecs, CacheFormatSecure} from "./types";
 import {CacheFieldValue} from "../hash";
@@ -165,12 +165,12 @@ export abstract class CacheFormatAbstract<A extends TR, N extends Id> implements
         return this._checkIds(invalidations, 'owner');
     }
 
-    field(field: IdAny): string {
-        return this._castId(field);
+    field(field: IdAny|FieldId<A>): string {
+        return this._castId(field as IdAny);
     }
 
-    fields(fields: IdAnyArray): Array<string> {
-        return this._castIds(fields);
+    fields(fields: IdAnyArray|FieldIddArray<A>): Array<string> {
+        return this._castIds(fields as IdAnyArray);
     }
 
     member(member: IdAny): string {

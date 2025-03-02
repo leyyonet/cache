@@ -3,6 +3,24 @@ import {BuilderAny} from "@leyyo/builder";
 
 class CacheUtilImpl implements CacheUtil {
 
+    bindAll(instance: Object): void {
+        // todo leyyo
+        // Get all defined class methods
+        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(instance));
+        const arr = [];
+        // Bind all methods
+        methods
+            .filter(method => (method !== 'constructor'))
+            .forEach((method) => {
+                instance[method] = instance[method].bind(instance);
+                arr.push(method);
+            });
+        for (const [method, body] of Object.entries(instance)) {
+            if (typeof body === 'function' && !arr.includes(method)) {
+                instance[method] = instance[method].bind(instance);
+            }
+        }
+    }
     objectInfo(value: unknown): string {
         return `${typeof value}/${value?.constructor?.name}`
     }

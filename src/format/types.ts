@@ -1,4 +1,4 @@
-import {Id, IdAny, IdAnyArray, OneOrMore, TR} from "../types";
+import {FieldId, FieldIddArray, Id, IdAny, IdAnyArray, OneOrMore, TR} from "../types";
 import {CacheFieldValue} from "../hash";
 import {ShiftMain, ShiftSecure} from "../secure";
 
@@ -26,9 +26,9 @@ export interface CacheFormat<A extends TR, N extends Id> extends ShiftSecure<Cac
 
     invalidations(invalidations: IdAnyArray): CacheFormatRecs;
 
-    field(field: IdAny): string;
+    field(field: IdAny|FieldId<A>): string;
 
-    fields(fields: IdAnyArray): Array<string>;
+    fields(fields: IdAnyArray|FieldIddArray<A>): Array<string>;
 
     member(member: IdAny): string;
 

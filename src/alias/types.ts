@@ -25,7 +25,7 @@ export interface CacheAlias<A extends TR, N extends Id> extends ShiftFlat<CacheA
      * @param {AliasAnyArray} aliases - aliases of data
      * @return {Promise<Array<Object>>} - a record of values at the specified owners
      * */
-    listDocs(aliases: AliasAnyArray): Promise<Record<KeyId, Partial<A>>>;
+    listDocs(aliases: AliasAnyArray): Promise<Array<Partial<A>>>;
 
     /**
      * Returns the values of all specified aliases (really data of owners).

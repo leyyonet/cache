@@ -15,16 +15,16 @@ export interface CacheSet<A extends TR, N extends Id> extends ShiftSecureFlat<Ca
     // endregion remove
 
     // region members
-    listMembers(key: KeyAny): Promise<Array<string>>;
+    listMembers(key: KeyAny): Promise<CacheInvalidatorResult<A, Array<string>>>;
 
-    getLength(key: KeyAny): Promise<number>;
+    getLength(key: KeyAny): Promise<CacheInvalidatorResult<A, number>>;
 
     // endregion members
 
     // region exists
-    exists(key: KeyAny, member: N): Promise<boolean>;
+    exists(key: KeyAny, member: N): Promise<CacheInvalidatorResult<A, boolean>>;
 
-    existMore(key: KeyAny, members: Array<N>): Promise<Record<string, boolean>>;
+    existMore(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, Array<boolean>>>;
 
     // endregion exists
 }
@@ -35,7 +35,7 @@ export interface CacheSetSecure<A extends TR, N extends Id> extends ShiftMain<Ca
     $remove(key: string, members: Array<string>): Promise<number>;
     $list(key: string): Promise<Array<string>>;
     $length(key: string): Promise<number>;
-    $exist(key: string, members: Array<string>): Promise<Array<boolean>>;
+    $exist(key: string, member: string): Promise<boolean>;
 
 }
 
