@@ -1,4 +1,4 @@
-import {FieldId, FieldIddArray, Id, IdAny, IdAnyArray, OneOrMore, TR} from "../types";
+import {FieldId, FieldIddArray, Id, IdAny, IdAnyArray, IdArray, OneOrMore, TR} from "../types";
 import {CacheFieldValue} from "../hash";
 import {ShiftMain, ShiftSecure} from "../secure";
 
@@ -26,15 +26,15 @@ export interface CacheFormat<A extends TR, N extends Id> extends ShiftSecure<Cac
 
     invalidations(invalidations: IdAnyArray): CacheFormatRecs;
 
-    field(field: IdAny|FieldId<A>): string;
+    field(field: Id | FieldId<A>): string;
 
-    fields(fields: IdAnyArray|FieldIddArray<A>): Array<string>;
+    fields(fields: IdArray | FieldIddArray<A>): Array<string>;
 
-    member(member: IdAny): string;
+    member(member: Id): string;
 
-    members(members: IdAnyArray): Array<string>;
+    members(members: IdArray): Array<string>;
 
-    memberShorts(members: IdAnyArray): CacheFormatBasics;
+    memberShorts(members: IdArray): CacheFormatBasics;
 
     value(value: CacheFieldValue<A>): CacheFieldValue<A>;
 
@@ -42,7 +42,6 @@ export interface CacheFormat<A extends TR, N extends Id> extends ShiftSecure<Cac
 }
 
 export interface CacheFormatSecure<A extends TR, N extends Id> extends ShiftMain<CacheFormat<A, N>> {
-    $setChannelFull(): void;
 }
 
 export interface CacheFormatRec {

@@ -1,15 +1,25 @@
 import {CacheChannel} from "../channel";
-import {FieldId, FieldIddArray, Id, IdAny, IdAnyArray, IdType, OneOrMore, TR} from "../types";
-import {cacheConfig} from "../config";
+import {FieldId, FieldIddArray, Id, IdAny, IdAnyArray, IdArray, IdType, OneOrMore, TR} from "../types";
+import {DLM_BETWEEN_PARTS, PRE_ALIAS, PRE_INVALIDATOR, PRE_KEY, PRE_OWNER} from "../config";
 import {CacheFormat, CacheFormatBasics, CacheFormatRec, CacheFormatRecs, CacheFormatSecure} from "./types";
 import {CacheFieldValue} from "../hash";
+import {cacheUtil} from "../util";
 
 // noinspection JSUnusedGlobalSymbols
 export abstract class CacheFormatAbstract<A extends TR, N extends Id> implements CacheFormat<A, N>, CacheFormatSecure<A, N> {
     protected channel: CacheChannel<A, N>;
+    protected readonly prefixes: Record<IdType, string>;
 
     protected constructor(channel: CacheChannel<A, N>) {
         this.channel = channel;
+        this.prefixes = {
+            key: PRE_KEY,
+            invalidation: PRE_INVALIDATOR,
+            alias: PRE_ALIAS,
+            owner: PRE_OWNER,
+            field: '',
+            member: '',
+        };
     }
 
     private _trim(ids: Array<Id>): void {
@@ -25,7 +35,7 @@ export abstract class CacheFormatAbstract<A extends TR, N extends Id> implements
         return;
     }
 
-    private _cast(value: unknown): string {
+    private _toPlain(value: unknown): string {
         if (value === undefined || value == null) {
             return null;
         }
@@ -44,64 +54,54 @@ export abstract class CacheFormatAbstract<A extends TR, N extends Id> implements
         }
     }
 
-    private _castId(id: IdAny): string {
-        if (Array.isArray(id)) {
-            let arr = id as Array<Id>;
-            if (arr.length < 1) {
-                return null;
-            }
-            arr = arr.map(item => this._cast(item));
-            // trim array
-            this._trim(arr);
-            return arr.length > 0 ? arr.join(cacheConfig.delimiterBetweenParts) : null;
-        }
-        return this._cast(id);
-    }
-
-    private _castIds(ids: IdAnyArray): Array<string> {
+    private _toPlainList(ids: Array<unknown>): Array<string> {
         if (!Array.isArray(ids) || ids.length < 1) {
             return [];
         }
         return ids
-            .map(id => this._castId(id))
+            .map(id => this._toPlain(id))
             .filter(id => id !== null)
             .filter((id, index, array) => array.indexOf(id) === index);
     }
 
-    private _buildFull(short: string, type: IdType): CacheFormatRec {
+    private _toDelimited(value: unknown): string {
+        if (value === undefined || value == null) {
+            return null;
+        }
+        switch (typeof value) {
+            case "string":
+                const str = value.trim();
+                return str !== '' ? cacheUtil.alphaNumeric(str) : null;
+            case "number":
+                return value.toString(10);
+            case "bigint":
+                return String(value);
+            case "boolean":
+                return value ? 'true' : 'false';
+            default:
+                return null;
+        }
+    }
+
+    private _buildFull(short: string, idType: IdType): CacheFormatRec {
         if (short) {
-            let delim = '';
-            switch (type) {
-                case "key":
-                    delim = cacheConfig.keyPrefix;
-                    break;
-                case "invalidation":
-                    delim = cacheConfig.invalidationPrefix;
-                    break;
-                case "alias":
-                    delim = cacheConfig.aliasPrefix;
-                    break;
-                case "owner":
-                    delim = cacheConfig.ownerPrefix;
-                    break;
-            }
-            return {short, full: `${delim}${this.channel.full}${short}`};
+            return {short, full: this._fullValue(this.prefixes[idType] ?? '', short)};
         }
         return {};
     }
 
-    private _checkId(id: IdAny, type?: IdType): CacheFormatRec {
-        id = this._castId(id);
+    private _fullId(id: IdAny, type?: IdType): CacheFormatRec {
+        id = this.basic(id);
         return id ? this._buildFull(id, type) : {};
     }
 
-    private _checkIds(ids: IdAnyArray, type: IdType): CacheFormatRecs {
+    private _fullIds(ids: IdAnyArray, type: IdType): CacheFormatRecs {
         // improper array
         if (!Array.isArray(ids) || ids.length < 1) {
             return {shorts: [], fulls: []};
         }
         // empty-valued array
-        const result = ids.map(id => this._castId(id));
+        const result = ids.map(id => this.basic(id));
         if (result.length < 1) {
             return {shorts: [], fulls: []};
         }
@@ -113,6 +113,9 @@ export abstract class CacheFormatAbstract<A extends TR, N extends Id> implements
             duplicated: ids?.length > fulls.length
         };
     }
+
+    // `${delim}${this.channel.full}${short}`
+    protected abstract _fullValue(delim: string, short: string): string;
 
     checkName<A>(property: OneOrMore<string | keyof A>): Array<string> {
         if (!property) {
@@ -126,62 +129,78 @@ export abstract class CacheFormatAbstract<A extends TR, N extends Id> implements
     }
 
     key(key: IdAny): CacheFormatRec {
-        return this._checkId(key, 'key');
+        return this._fullId(key, 'key');
     }
 
     keys(keys: IdAnyArray): CacheFormatRecs {
-        return this._checkIds(keys, 'key');
+        return this._fullIds(keys, 'key');
     }
 
-    basic(field: IdAny): string {
-        return this._castId(field);
+    basic(id: IdAny): string {
+        if (Array.isArray(id)) {
+            let arr = id as Array<Id>;
+            if (arr.length < 1) {
+                return null;
+            }
+            arr = arr.map(item => this._toDelimited(item));
+            // trim array
+            this._trim(arr);
+            return arr.length > 0 ? arr.join(DLM_BETWEEN_PARTS) : null;
+        }
+        return this._toDelimited(id);
     }
 
-    basics(fields: IdAnyArray): Array<string> {
-        return this._castIds(fields);
+    basics(ids: IdAnyArray): Array<string> {
+        if (!Array.isArray(ids) || ids.length < 1) {
+            return [];
+        }
+        return ids
+            .map(id => this.basic(id))
+            .filter(id => id !== null)
+            .filter((id, index, array) => array.indexOf(id) === index);
     }
 
     alias(alias: IdAny): CacheFormatRec {
-        return this._checkId(alias, 'alias');
+        return this._fullId(alias, 'alias');
     }
 
     aliases(aliases: IdAnyArray): CacheFormatRecs {
-        return this._checkIds(aliases, 'alias');
+        return this._fullIds(aliases, 'alias');
     }
 
     owner(owner: IdAny): CacheFormatRec {
-        return this._checkId(owner, 'owner');
+        return this._fullId(owner, 'owner');
     }
 
     owners(owners: IdAnyArray): CacheFormatRecs {
-        return this._checkIds(owners, 'owner');
+        return this._fullIds(owners, 'owner');
     }
 
     invalidation(invalidation: IdAny): CacheFormatRec {
-        return this._checkId(invalidation, 'invalidation');
+        return this._fullId(invalidation, 'invalidation');
     }
 
     invalidations(invalidations: IdAnyArray): CacheFormatRecs {
-        return this._checkIds(invalidations, 'owner');
+        return this._fullIds(invalidations, 'owner');
     }
 
-    field(field: IdAny|FieldId<A>): string {
-        return this._castId(field as IdAny);
+    field(field: Id | FieldId<A>): string {
+        return this._toPlain(field);
     }
 
-    fields(fields: IdAnyArray|FieldIddArray<A>): Array<string> {
-        return this._castIds(fields as IdAnyArray);
+    fields(fields: IdArray | FieldIddArray<A>): Array<string> {
+        return this._toPlainList(fields);
     }
 
-    member(member: IdAny): string {
-        return this._castId(member);
+    member(member: Id): string {
+        return this._toPlain(member);
     }
 
-    members(members: IdAnyArray): Array<string> {
-        return this._castIds(members);
+    members(members: IdArray): Array<string> {
+        return this._toPlainList(members);
     }
 
-    memberShorts(members: IdAnyArray): CacheFormatBasics {
+    memberShorts(members: IdArray): CacheFormatBasics {
         const arr = this.members(members);
         return {shorts: arr, duplicated: arr.length < members?.length};
     }
@@ -237,8 +256,6 @@ export abstract class CacheFormatAbstract<A extends TR, N extends Id> implements
     get $secure(): CacheFormatSecure<A, N> {
         return this;
     }
-
-    abstract $setChannelFull(): void;
 
     // endregion secure
 }

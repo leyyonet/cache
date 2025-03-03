@@ -2,9 +2,52 @@ import {CacheUtil} from "./types";
 import {BuilderAny} from "@leyyo/builder";
 
 class CacheUtilImpl implements CacheUtil {
+    protected readonly chars = ['|', '/', '>', ':'];
+    private _converted: Record<string, string> = {};
+    private _same: Array<string> = [];
+
+    constructor() {
+        setTimeout(() => this._clear(), 5 * 60_000); // 5 minutes
+    }
+
+    private _clear() {
+        this._converted = {};
+        this._same = [];
+        setTimeout(() => this._clear(), 5 * 60_000); // 5 minutes
+    }
+
+    alphaNumeric(value: string): string {
+        if (!value) {
+            return value;
+        }
+
+        if (this._same.includes(value)) {
+            return value;
+        }
+
+        if (!/[|\/^>:]/.test(value)) {
+            this._same.push(value);
+            return value;
+        }
+
+        if (this._converted[value]) {
+            return this._converted[value];
+        }
+        let text = value;
+        if (text.includes('^')) {
+            text = text.replace('^', '~#£');
+        }
+        this.chars.forEach((c, i) => {
+            if (text.includes(c)) {
+                text = text.replace(c, '^' + i);
+            }
+        });
+        this._converted[value] = text;
+        return text;
+    }
 
     bindAll(instance: Object): void {
-        // todo leyyo
+        // @leyyo
         // Get all defined class methods
         const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(instance));
         const arr = [];
@@ -21,6 +64,7 @@ class CacheUtilImpl implements CacheUtil {
             }
         }
     }
+
     objectInfo(value: unknown): string {
         return `${typeof value}/${value?.constructor?.name}`
     }
@@ -220,7 +264,7 @@ class CacheUtilImpl implements CacheUtil {
             return this._asObject(Object.fromEntries(value.entries()));
         } else if (Array.isArray(value)) {
             const arr = value as Array<unknown>;
-            // todo move to leyyo, as isTuple
+            // @leyyo move, as isTuple
             let isTuple = true;
             for (const item of arr) {
                 if (!Array.isArray(item) || item.length !== 2) {

@@ -1,6 +1,7 @@
 export type OneOrMore<T> = T | Array<T>;
 
 export type Id = string | number;
+export type IdArray = Array<Id>;
 export type IdAny = OneOrMore<Id>;
 export type IdAnyArray = Array<IdAny>;
 
@@ -23,12 +24,12 @@ export type TR = Object | Record<string, unknown>;
 export type FieldId<A extends TR> = keyof A | string;
 export type FieldIddArray<A extends TR = TR> = Array<FieldId<A>>;
 export type FieldValue<A extends TR = TR> = A[keyof A] | string | number;
-export type FieldValueArray<A extends TR = TR> = Array<FieldValue<A>>;
 export type FieldMap<A extends TR = TR> = Map<FieldId<A>, FieldValue<A>>;
 export type FieldTuple<A extends TR = TR> = [FieldId<A>, FieldValue<A>];
 export type FieldTupleArray<A extends TR = TR> = Array<FieldTuple<A>>;
 
 export type IdType = 'key' | 'alias' | 'owner' | 'invalidation' | 'field' | 'member';
+// noinspection JSUnusedGlobalSymbols
 export type SameType<E, T> = {
     [P in keyof E]?: T;
 };

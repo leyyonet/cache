@@ -235,6 +235,7 @@ export class CacheHubImpl implements CacheHub, CacheHubSecure {
         this.prop.$secure.$setPure(prop);
         this._segments.forEach(segment => segment.$secure.$setProp(prop));
     }
+
     $checkInvalidatorConsumer(consumer: CacheInvalidatorConsumer): void {
         cacheUtil.checkName('hub.$checkInvalidatorConsumer', 'id', consumer.id, false);
         if (this._invalidatorConsumerMap.has(consumer.id)) {

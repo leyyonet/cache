@@ -8,11 +8,18 @@ import {
     CacheOptProperty,
     CacheOptReturnPrevious,
     CacheOptSaveMode,
-    CacheOptSaveSpan, CacheResultGetExpiry,
-    CacheResultInfo, CacheResultPersist, CacheResultSetExpiry
+    CacheOptSaveSpan,
+    CacheResulCopy,
+    CacheResulSet,
+    CacheResultBoolean,
+    CacheResultGetExpiry,
+    CacheResultInfo,
+    CacheResultNumber,
+    CacheResultPersist,
+    CacheResultSetExpiry
 } from "../command";
 import {Id, KeyAny, KeyAnyArray, KeyId, TR} from "../types";
-import {ShiftMain, ShiftSecureFlat} from "../secure";
+import {InitLike, ShiftMain, ShiftSecureFlat} from "../secure";
 import {ExpiryMode} from "../literal";
 
 export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<CacheBasicSecure<A, N>, CacheBasicDef> {
@@ -28,6 +35,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * - Value is parsed from json
      * */
     getDoc(key: KeyAny): Promise<CacheInvalidatorResult<A, A>>;
+
     listDocs(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, Array<A>>>;
 
     /**
@@ -40,6 +48,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * - An error is returned if the value stored at key is not a string, because GET only handles string values.
      * */
     getRaw<T>(key: KeyAny): Promise<CacheInvalidatorResult<A, T>>;
+
     listRaws<T>(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, Array<T>>>;
 
     /**
@@ -47,7 +56,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      *
      * @param {Object} value - data
      * @param {CmdBasicSetWithKey} opt - options
-     * @return {Promise<Object|boolean>} - previous data or is success?
+     * @return {Promise<Object|CacheResulSet>} - previous data or is success?
      *
      * Notes
      * - If key already holds a value, it is overwritten, regardless of its type.
@@ -67,10 +76,9 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      *
      * returns <one of them>
      * - Object => previous data of key, {@link CmdBasicSetBase#returnPrevious}
-     * - false  => the key was not set
-     * - true   => the key was set
+     * - Number => {@link CacheResulSet}
      * */
-    setDoc(value: Partial<A>, opt?: CmdBasicSetWithKey<A>): Promise<CacheInvalidatorResult<A, Partial<A> | boolean>>;
+    setDoc(value: Partial<A>, opt?: CmdBasicSetWithKey<A>): Promise<CacheInvalidatorResult<A, Partial<A> | CacheResulSet>>;
 
     /**
      * Sets value with given key (data is converted to json)
@@ -78,12 +86,12 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * @param {KeyAny} key - key of data
      * @param {Object} value - data
      * @param {CmdBasicSetBase?} opt - options
-     * @return {Promise<Object|boolean>} - previous data or is success?
+     * @return {Promise<Object|CacheResulSet>} - previous data or is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
      * */
-    setDoc(key: KeyAny, value: Partial<A>, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, Partial<A> | boolean>>;
+    setDoc(key: KeyAny, value: Partial<A>, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, Partial<A> | CacheResulSet>>;
 
     /**
      * Sets value with given key
@@ -91,67 +99,67 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * @param {KeyAny} key - key of data
      * @param {Object} value - data
      * @param {CmdBasicSetBase?} opt - options
-     * @return {Promise<Object|boolean>} - previous data or is success?
+     * @return {Promise<Object|CacheResulSet>} - previous data or is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
      * */
-    setRaw<T extends string|number>(key: KeyAny, value: T, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, string | boolean>>;
+    setRaw<T extends string | number>(key: KeyAny, value: T, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, string | CacheResulSet>>;
 
     /**
      * Sets multiple keys with given array of values
      *
      * @param {Array<Object>} values - array of values
      * @param {CmdBasicSetWithProp} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResulSet>} - is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
      * */
-    setDocsMore(values: Array<Partial<A>>, opt?: CmdBasicSetWithProp<A>): Promise<CacheInvalidatorResult<A, boolean>>;
+    setDocsMore(values: Array<Partial<A>>, opt?: CmdBasicSetWithProp<A>): Promise<CacheInvalidatorResult<A, CacheResulSet>>;
 
     /**
      * Sets multiple keys with given record of values
      *
      * @param {Record<KeyId, Object>} records
      * @param {CmdBasicSetBase} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResulSet>} - is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
      * */
-    setDocsMore(records: Record<KeyId, Partial<A>>, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, boolean>>;
+    setDocsMore(records: Record<KeyId, Partial<A>>, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, CacheResulSet>>;
 
     /**
      * Sets multiple keys with given map of values
      *
      * @param {Map<KeyId, Object>} map
      * @param {CmdBasicSetBase} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResulSet>} - is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
      * */
-    setDocsMore(map: Map<KeyId, Partial<A>>, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, boolean>>;
+    setDocsMore(map: Map<KeyId, Partial<A>>, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, CacheResulSet>>;
 
     /**
      * Sets multiple keys with given tuple of values as [ [key-1, value-1], [key-2, value-2], ...]
      *
      * @param {Array<[KeyId, Object]>} tuples
      * @param {CmdBasicSetBase} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResulSet>} - is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
      * */
-    setDocsMore(tuples: Array<[KeyId, Partial<A>]>, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, boolean>>;
+    setDocsMore(tuples: Array<[KeyId, Partial<A>]>, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, CacheResulSet>>;
 
     /**
      * Sets multiple keys with given record of values
      *
      * @param {Record<KeyId, Object>} records
      * @param {CmdBasicSetBase} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResulSet>} - is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
@@ -159,74 +167,74 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * Note:
      * Data won't be converted to json string
      * */
-    setRawsMore<T extends string|number>(records: Record<KeyId, T>, opt?: CmdBasicSetNoKey): Promise<CacheInvalidatorResult<A, boolean>>;
+    setRawsMore<T extends string | number>(records: Record<KeyId, T>, opt?: CmdBasicSetNoKey): Promise<CacheInvalidatorResult<A, CacheResulSet>>;
 
     /**
      * Sets multiple keys with given map of values
      *
      * @param {Map<KeyId, Object>} map
      * @param {CmdBasicSetBase} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResulSet>} - is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
      * Data won't be converted to json string
      * */
-    setRawsMore<T extends string|number>(map: Map<KeyId, T>, opt?: CmdBasicSetNoKey): Promise<CacheInvalidatorResult<A, boolean>>;
+    setRawsMore<T extends string | number>(map: Map<KeyId, T>, opt?: CmdBasicSetNoKey): Promise<CacheInvalidatorResult<A, CacheResulSet>>;
 
     /**
      * Sets multiple keys with given tuple of values as [ [key-1, value-1], [key-2, value-2], ...]
      *
      * @param {Array<[KeyId, Object]>} tuples
      * @param {CmdBasicSetBase} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResulSet>} - is success?
      *
      * @inheritDoc
      * {@link #setDoc} above for options
      * */
-    setRawsMore<T extends string|number>(tuples: Array<[KeyId, T]>, opt?: CmdBasicSetNoKey): Promise<CacheInvalidatorResult<A, boolean>>;
+    setRawsMore<T extends string | number>(tuples: Array<[KeyId, T]>, opt?: CmdBasicSetNoKey): Promise<CacheInvalidatorResult<A, CacheResulSet>>;
 
     /**
      * Returns if key exists
      *
      * @param {KeyAny} key - key of data
-     * @return {Promise<boolean>} - does the key exists?
+     * @return {Promise<CacheResultBoolean>} - does the key exists?
      * */
-    exists(key: KeyAny): Promise<CacheInvalidatorResult<A, boolean>>;
+    exists(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultBoolean>>;
 
     /**
      * Returns if keys exist
      *
      * @param {KeyAnyArray} keys - keys of data
-     * @return {Promise<number>} - the number of keys that exist
+     * @return {Promise<CacheResultNumber>} - the number of keys that exist
      * */
-    existMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, number>>;
+    existMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, CacheResultNumber>>;
 
     /**
      * Removes the specified key. A key is ignored if it does not exist.
      *
      * @param {KeyAny} key - key of data
-     * @return {Promise<number>} - the number of keys that were removed
+     * @return {Promise<CacheResultBoolean>} - the number of keys that were removed
      *
      * returns <one of them>
      * - 0 => key does not exist
      * - 1 => key was removed
      * */
-    delete(key: KeyAny): Promise<CacheInvalidatorResult<A, boolean>>;
+    delete(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultBoolean>>;
 
     /**
      * Removes the specified keys. A key is ignored if it does not exist.
      *
      * @param {KeyAnyArray} keys - keys of data
-     * @return {Promise<number>} - the number of keys that were removed
+     * @return {Promise<CacheResultNumber>} - the number of keys that were removed
      * */
-    deleteMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, number>>;
+    deleteMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, CacheResultNumber>>;
 
     /**
      * Removes the specified key without blocking. A key is ignored if it does not exist.
      *
      * @param {KeyAny} key - key of data
-     * @return {Promise<number>} - the number of keys that were removed
+     * @return {Promise<CacheResultBoolean>} - the number of keys that were removed
      *
      * returns <one of them>
      * - 0 => key does not exist
@@ -235,18 +243,18 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * Notes
      * - The actual removal will happen later asynchronously
      * */
-    unlink(key: KeyAny): Promise<CacheInvalidatorResult<A, boolean>>;
+    unlink(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultBoolean>>;
 
     /**
      * Removes the specified keys without blocking. A key is ignored if it does not exist.
      *
      * @param {KeyAnyArray} keys - keys of data
-     * @return {Promise<number>} - the number of keys that were removed
+     * @return {Promise<CacheResultNumber>} - the number of keys that were removed
      *
      * Notes
      * - The actual removal will happen later asynchronously
      * */
-    unlinkMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, number>>;
+    unlinkMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, CacheResultNumber>>;
 
     /**
      * Sets a timeout on key as ttl.
@@ -254,17 +262,14 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      *
      * @param {KeyAny} key - key of data
      * @param {CmdBasicSetTtl?} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResultSetExpiry>} - is success?
      *
      * option(`expiry`)  details ==> {@link CacheOptExpiryUnitTuple}
      * option(`mode`)    details ==> {@link CacheOptExpiryMode}
      *
-     * returns <one of them>
-     * - false => key does not exist
-     * - true  => the timeout was set
-     *
      * */
     setTtl(key: KeyAny, opt?: CmdBasicSetTtl): Promise<CacheInvalidatorResult<A, CacheResultSetExpiry>>;
+
     setTtlMore(keys: KeyAnyArray, opt?: CmdBasicSetTtl): Promise<CacheInvalidatorResult<A, Array<CacheResultSetExpiry>>>;
 
     /**
@@ -273,17 +278,14 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      *
      * @param {KeyAny} key - key of data
      * @param {CmdBasicSetTimestamp?} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResultSetExpiry>} - is success?
      *
      * option(`expiry`)  details ==> {@link CacheOptExpiryUnitTuple}
      * option(`mode`)    details ==> {@link CacheOptExpiryMode}
      *
-     * returns <one of them>
-     * - false => key does not exist
-     * - true  => the timeout was set
-     *
      * */
     setTimestamp(key: KeyAny, opt?: CmdBasicSetTimestamp): Promise<CacheInvalidatorResult<A, CacheResultSetExpiry>>;
+
     setTimestampMore(keys: KeyAnyArray, opt?: CmdBasicSetTtl): Promise<CacheInvalidatorResult<A, Array<CacheResultSetExpiry>>>;
 
     /**
@@ -291,7 +293,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      *
      * @param {KeyAny} key - key of data
      * @param {CmdBasicGetTimestamp?} opt - options
-     * @return {Promise<number>} - return remaining time based on option
+     * @return {Promise<CacheResultGetExpiry>} - return remaining time based on option
      *
      * option(`unit`) => details {@link CacheOptExpiryUnit}
      *
@@ -304,6 +306,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      *
      * */
     getTimestamp(key: KeyAny, opt?: CmdBasicGetTimestamp): Promise<CacheInvalidatorResult<A, CacheResultGetExpiry>>;
+
     getTimestampMore(keys: KeyAnyArray, opt?: CmdBasicGetTimestamp): Promise<CacheInvalidatorResult<A, Array<CacheResultGetExpiry>>>;
 
     /**
@@ -311,7 +314,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      *
      * @param {KeyAny} key - key of data
      * @param {CmdBasicGetTtl?} opt - options
-     * @return {Promise<number>} - return remaining time based on option
+     * @return {Promise<CacheResultGetExpiry>} - return remaining time based on option
      *
      * option(`unit`) details => {@link CacheOptExpiryUnit}
      *
@@ -324,19 +327,17 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      *
      * */
     getTtl(key: KeyAny, opt?: CmdBasicGetTtl): Promise<CacheInvalidatorResult<A, CacheResultGetExpiry>>;
+
     getTtlMore(keys: KeyAnyArray, opt?: CmdBasicGetTtl): Promise<CacheInvalidatorResult<A, Array<CacheResultGetExpiry>>>;
 
     /**
      * Removes the existing timeout on key
      *
      * @param {KeyAny} key - key of data
-     * @return {Promise<boolean>} - is success?
-     *
-     * returns <one of them>
-     * - false => key does not exist or does not have an associated timeout.
-     * - true  => the timeout has been removed.
+     * @return {Promise<CacheResultPersist>} - is success?
      * */
     persist(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultPersist>>;
+
     persistMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, Array<CacheResultPersist>>>;
 
     /**
@@ -345,7 +346,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * @param {KeyAny} source - source key
      * @param {KeyAny} destination - destination key
      * @param {CmdBasicCopy?} opt - options
-     * @return {Promise<boolean>} - is success?
+     * @return {Promise<CacheResulCopy>} - is success?
      *
      * options
      * - Logical database index, {@link CmdBasicCopy#destinationDb}
@@ -355,12 +356,8 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * - By default, the destination key is created in the logical database used by the connection.
      * - The DB option allows specifying an alternative logical database index for the destination key
      * - It returns false when the destination key already exists if replace is not used
-     *
-     * returns <one of them>
-     * - false => source was not copied
-     * - true  => source was copied
      * */
-    copy(source: KeyAny, destination: KeyAny, opt?: CmdBasicCopy): Promise<CacheInvalidatorResult<A, boolean>>;
+    copy(source: KeyAny, destination: KeyAny, opt?: CmdBasicCopy): Promise<CacheInvalidatorResult<A, CacheResulCopy>>;
 
     /**
      * Returns the string representation of the type of the value stored at key
@@ -378,6 +375,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
      * - null  => when key doesn't exist
      * */
     getType(key: KeyAny): Promise<CacheInvalidatorResult<A, string>>;
+
     getTypeMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, Array<string>>>;
 
     /**
@@ -391,7 +389,7 @@ export interface CacheBasic<A extends TR, N extends Id> extends ShiftSecureFlat<
     getInfo(key: KeyAny): Promise<CmdBasicInfoResult>;
 }
 
-export interface CacheBasicSecure<A extends TR, N extends Id> extends ShiftMain<CacheBasic<A, N>> {
+export interface CacheBasicSecure<A extends TR, N extends Id> extends ShiftMain<CacheBasic<A, N>>, InitLike {
     // COPY(source, destination, opt)
     $copy(source: string, destination: string, opt?: CacheOptCopy): Promise<boolean>;
 
@@ -401,42 +399,52 @@ export interface CacheBasicSecure<A extends TR, N extends Id> extends ShiftMain<
     // MGET
     $getMore(keys: Array<string>): Promise<Array<string>>;
 
-    $exists(keys: string): Promise<boolean>;
+    $exists(key: string): Promise<boolean>;
+
     $existMore(keys: Array<string>): Promise<number>;
 
     $set(key: string, value: string, opt?: CmdBasicSetBase): Promise<string>;
+
     $setMore(records: Record<string, string>): Promise<string>;
 
     // DEL(keys)
     $delete(key: string): Promise<boolean>;
+
     $deleteMore(keys: Array<string>): Promise<number>;
 
     // UNLINK(keys)
-    $unlink(keys: string): Promise<boolean>;
+    $unlink(key: string): Promise<boolean>;
+
     $unlinkMore(keys: Array<string>): Promise<number>;
 
     // foreach PTTL
     $getTtl(key: string): Promise<CacheResultGetExpiry>;
+
     $getTtlMore(keys: Array<string>): Promise<Array<CacheResultGetExpiry>>;
 
     // foreach PEXPIRETIME(full)
     $getTimestamp(key: string): Promise<CacheResultGetExpiry>;
+
     $getTimestampMore(keys: Array<string>): Promise<Array<CacheResultGetExpiry>>;
 
     // foreach PEXPIRE(key, milliseconds, mode)
     $setTtl(key: string, milliseconds: number, mode?: ExpiryMode): Promise<CacheResultSetExpiry>;
-    $setTtlMore(key: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheResultSetExpiry>>;
+
+    $setTtlMore(keys: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheResultSetExpiry>>;
 
     // foreach PEXPIREAT(key, milliseconds, mode);
     $setTimestamp(key: string, milliseconds: number, mode?: ExpiryMode): Promise<CacheResultSetExpiry>;
-    $setTimestampMore(key: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheResultSetExpiry>>;
+
+    $setTimestampMore(keys: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheResultSetExpiry>>;
 
     // foreach PERSIST(full)
     $persist(key: string): Promise<CacheResultPersist>;
+
     $persistMore(keys: Array<string>): Promise<Array<CacheResultPersist>>;
 
     // native.TYPE(full)
     $type(key: string): Promise<string>;
+
     $typeMore(keys: Array<string>): Promise<Array<string>>;
 }
 
@@ -503,14 +511,15 @@ export type CmdBasicSetWithProp<A> = CmdBasicSetBase &
 
 export type CmdBasicSetNoKey = CmdBasicSetBase;
 
-export type CacheBasicSimpleCommand<T> = (keys: Array<string>, ...args: Array<unknown>) => Promise<Array<T>>;
-export type CacheBasicSimpleNumberCommand = (keys: Array<string>, ...args: Array<unknown>) => Promise<number>;
+type CacheCommandDisabledLambda1<A, T> = (def?: T, command?: string) => CacheInvalidatorResult<A, T>;
+type CacheCommandDisabledLambda2<A, T> = (command?: string) => CacheInvalidatorResult<A, T>;
+export type CacheCommandDisabledLambda<A, T> = CacheCommandDisabledLambda1<A, T> | CacheCommandDisabledLambda2<A, T>;
 
+type CacheCommandIgnoredLambda1<A, T> = (def?: T, error?: string | Error, command?: string) => CacheInvalidatorResult<A, T>;
+type CacheCommandIgnoredLambda2<A, T> = (error?: string | Error, command?: string) => CacheInvalidatorResult<A, T>
+export type CacheCommandIgnoredLambda<A, T> = CacheCommandIgnoredLambda1<A, T> | CacheCommandIgnoredLambda2<A, T>;
 
-export type CacheCommandDisabledLambda<A, T> = () => CacheInvalidatorResult<A, T>;
-export type CacheCommandIgnoredLambda<A, T> = (error?: string | Error, command?: string) => CacheInvalidatorResult<A, T>;
-
-export type InvalidatorType = 'string'|'number'|'boolean'|'array'|'object';
+export type InvalidatorType = 'string' | 'number' | 'boolean' | 'array' | 'object';
 
 
 

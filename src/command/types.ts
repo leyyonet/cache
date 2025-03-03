@@ -1,27 +1,71 @@
 import {ExpiryMode, ExpiryUnit, SaveMode, SaveSpan} from "../literal";
 import {KeyAny, OneOrMore, TR} from "../types";
 
-/**
- * # -2 if the key does not exist.
- * # -1 if the key exists but has no associated expire.
- * # TTL or timestamp
- * */
-export type CacheResultGetExpiry = -1|-2|number;
+export type DIS = -99;
+export type EKEY = -98;
+export type EVAL = -97;
 
 /**
- * Integer reply: -2 if no such field exists in the provided hash key, or the provided key does not exist.
- * Integer reply: 0 if the specified NX | XX | GT | LT condition has not been met.
- * Integer reply: 1 if the expiration time was set/updated.
- * Integer reply: 2 when HEXPIRE/HPEXPIRE is called with 0 seconds/milliseconds or when HEXPIREAT/HPEXPIREAT is called with a past Unix time in seconds/milliseconds.
+ * {@link DIS} - Disabled
+ * {@link EKEY} - Empty key/keys
+ * {@code 0} False, no
+ * {@code 1} True, yes
  * */
-export type CacheResultSetExpiry = -2|0|1|2;
+export type CacheResultBoolean = DIS | EKEY | EVAL | 0 | 1;
 
 /**
- * Integer reply: -2 if no such field exists in the provided hash key, or the provided key does not exist.
- * Integer reply: -1 if the field exists but has no associated expiration set.
- * Integer reply: 1 the expiration was removed.
+ * {@link DIS} - Disabled
+ * {@link EKEY} - Empty key/keys
+ * {@code number} count ie: existed count, deleted count, affected count, length, size etc
  * */
-export type CacheResultPersist = -2|-1|1;
+export type CacheResultNumber = DIS | EKEY | EVAL | number;
+
+/**
+ * {@link DIS} - Disabled
+ * {@link EKEY} - Empty key/keys
+ * {@code -2} key does not exist.
+ * {@code -1} key exists but has no associated expire.
+ * {@code number} TTL or timestamp
+ * */
+export type CacheResultGetExpiry = DIS | EKEY | -1 | -2 | number;
+
+/**
+ * {@link DIS} - Disabled
+ * {@link EKEY} - Empty key/keys
+ * {@link EVAL} - Invalid time value
+ * {@code -2} no such field exists in the provided hash key, or the provided key does not exist.
+ * {@code 0} the specified NX | XX | GT | LT condition has not been met.
+ * {@code 1} the expiration time was set/updated.
+ * {@code 2} when HEXPIRE/HPEXPIRE is called with 0 seconds/milliseconds or when HEXPIREAT/HPEXPIREAT is called with a past Unix time in seconds/milliseconds.
+ * */
+export type CacheResultSetExpiry = DIS | EKEY | EVAL | -2 | 0 | 1 | 2;
+
+/**
+ * {@link DIS} - Disabled
+ * {@link EKEY} - Empty key/keys
+ * {@code -2} if no such field exists in the provided hash key, or the provided key does not exist.
+ * {@code -1} if the field exists but has no associated expiration set.
+ * {@code 1} the expiration was removed.
+ * */
+export type CacheResultPersist = DIS | EKEY | -2 | -1 | 1;
+
+/**
+ * {@link DIS} - Disabled
+ * {@link EKEY} - Empty key/keys
+ * {@link EVAL} - Empty value/values
+ * {@code 0} - Not set
+ * {@code 1} - set
+ * */
+export type CacheResulSet = DIS | EKEY | EVAL | 0 | 1;
+
+/**
+ * {@link DIS} - Disabled
+ * {@link EKEY} - Empty source
+ * {@link EVAL} - Empty destination
+ * {@code 0} - Not copied
+ * {@code 1} - Copied
+ * */
+export type CacheResulCopy = DIS | EKEY | EVAL | 0 | 1;
 
 // region parts
 /**
@@ -192,7 +236,7 @@ export interface CacheResultInfo {
 
 /*
 *
-* // todo add to leyyo
+* // @leyyo add
 export type MaximumOneOf<T, K extends keyof T = keyof T> = K extends keyof T ? {
     [P in K]: T[K];
 } & Partial<Record<Exclude<keyof T, K>, never>> : never;

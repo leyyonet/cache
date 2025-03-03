@@ -14,6 +14,7 @@ import {CacheSet} from "../set";
 import {
     CacheInvalidator,
     CacheInvalidatorDeleteRequest,
+    CacheInvalidatorImpl,
     CacheInvalidatorInvalidateRequest,
     CacheInvalidatorNotifyRequest
 } from "../invalidator";
@@ -25,21 +26,27 @@ import {CacheFormat} from "../format";
 import {Builder} from "@leyyo/builder";
 import {CacheAlias} from "../alias";
 import {cacheHub} from "../hub";
+import {DLM_AFTER_PARENT, DLM_BETWEEN_PARENTS} from "../config";
 
 // noinspection JSUnusedGlobalSymbols
 export abstract class CacheChannelAbstract<A extends TR, N extends Id> implements CacheChannel<A, N>, CacheChannelSecure<A, N> {
     // region properties
-    protected _full: string; // from child
+    readonly full: string; // here
     protected _pNames: Array<string>;
     readonly entity: CacheEntity<A>; // from child
+    readonly hash: CacheHash<A, N>; // from child
+    readonly basic: CacheBasic<A, N>; // from child
+    readonly set: CacheSet<A, N>; // from child
+    readonly alias: CacheAlias<A, N>; // from child
+    readonly format: CacheFormat<A, N>; // from child
+    readonly client: CacheClient; // from child
+
     readonly path: string; // here
     readonly id: string; // here
-    readonly client: CacheClient; // from child
     readonly util: CacheUtil; // here
-    readonly prop: Readonly<CacheChannelProp<A>>;
+    readonly prop: Readonly<CacheChannelProp<A>>; // here
 
-    readonly invalidator: CacheInvalidator<A>; // from child
-    readonly format: CacheFormat<A, N>; // from child
+    readonly invalidator: CacheInvalidator<A>; // here
 
     // endregion properties
 
@@ -51,21 +58,25 @@ export abstract class CacheChannelAbstract<A extends TR, N extends Id> implement
         this.id = id;
         this.client = client as CacheClient;
         this.prop = new CacheChannelPropImpl(prop, entity.prop);
+        this.invalidator = new CacheInvalidatorImpl(this);
         this._pNames = cacheUtil.parseProperties(this.prop.property);
         this.util = cacheUtil;
         cacheHub.$secure.$checkInvalidatorConsumer(this.$flat);
+
+        const parts = ([this.entity.segment.path, this.entity.path, this.path] as Array<string>)
+            .map(item => cacheUtil.alphaNumeric(item))
+            .filter(item => !!item);
+        if (parts.length > 0) {
+            this.full = parts.join(DLM_BETWEEN_PARENTS) + DLM_AFTER_PARENT;
+        } else {
+            this.full = DLM_AFTER_PARENT;
+        }
+
     }
 
     // endregion constructor
 
     // region plugins
-    abstract get hash(): CacheHash<A, N>;
-
-    abstract get basic(): CacheBasic<A, N>;
-
-    abstract get set(): CacheSet<A, N>;
-
-    abstract get alias(): CacheAlias<A, N>;
 
 
     async info(check: CacheInfoCheck): Promise<CacheChannelInfo> {
@@ -78,10 +89,6 @@ export abstract class CacheChannelAbstract<A extends TR, N extends Id> implement
     }
 
     // endregion plugins
-
-    get full(): string {
-        return this._full;
-    }
 
     changeProp(lambda: CacheChannelPropLambda<A>): void {
         this.$setProp(cacheUtil.readProp(lambda(Builder.build<CacheChannelPropData<A>>())));
@@ -102,19 +109,6 @@ export abstract class CacheChannelAbstract<A extends TR, N extends Id> implement
 
     get $pNames(): Array<string> {
         return this._pNames;
-    }
-
-    $setFull(full: string): void {
-        if (this._full) {
-            console.log(`Full code is already set!, channel:${this.path}, client: {provider:${this.client.provider.name}, description:${this.client.description}, num:${this.client.num}}`)
-        }
-        this._full = full;
-        // const parts = ([this.entity.segment.path, this.entity.path, this.path] as Array<string>).filter(item => item);
-        // if (parts.length > 0) {
-        //     this._full = parts.join(cacheConfig.delimiterParents) + cacheConfig.afterParent;
-        // } else {
-        //     this._full = cacheConfig.afterParent;
-        // }
     }
 
     $setProp(prop: Partial<CacheChannelPropData<A>>): void {

@@ -13,6 +13,7 @@ export interface CacheRemote extends CacheInvalidatorConsumer {
     setNotifyLambda(lambda: CacheRemoteNotifyLambda): void;
 
     setInvalidateLambda(lambda: CacheRemoteInvalidateLambda): void;
+
     setDeleteLambda(lambda: CacheRemoteDeleteLambda): void;
 
     get enabled(): boolean;

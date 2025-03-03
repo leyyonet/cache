@@ -2,52 +2,60 @@ import {
     CacheBasic,
     CacheBasicDef,
     CacheBasicSecure,
-    CacheBasicSimpleCommand,
-    CacheBasicSimpleNumberCommand,
-    CacheCommandDisabledLambda,
-    CacheCommandIgnoredLambda,
+    CacheCommandDisabledLambda, CacheCommandIgnoredLambda,
     CmdBasicCopy,
     CmdBasicGetTimestamp,
     CmdBasicGetTtl,
     CmdBasicInfoResult,
-    CmdBasicSetBase, CmdBasicSetMoreBase, CmdBasicSetMoreWithProp,
+    CmdBasicSetBase,
+    CmdBasicSetMoreBase,
+    CmdBasicSetMoreWithProp,
     CmdBasicSetTimestamp,
     CmdBasicSetTtl,
     CmdBasicSetWithKey,
-    CmdBasicSetWithProp, InvalidatorType
+    CmdBasicSetWithProp,
+    InvalidatorType
 } from "./types";
 import {Id, IdAny, KeyAny, KeyAnyArray, KeyId, TR} from "../types";
 import {CacheFormat, CacheFormatRec} from "../format";
 import {CacheInvalidator, CacheInvalidatorResult} from "../invalidator";
 import {CacheChannel, CacheChannelProp, CacheChannelPropSecure} from "../channel";
 import {cacheUtil} from "../util";
-import {CacheOptCopy, CacheResultGetExpiry, CacheResultPersist, CacheResultSetExpiry} from "../command";
+import {
+    CacheOptCopy,
+    CacheResulCopy,
+    CacheResulSet,
+    CacheResultBoolean,
+    CacheResultGetExpiry,
+    CacheResultNumber,
+    CacheResultPersist,
+    CacheResultSetExpiry
+} from "../command";
 import {ExpiryMode} from "../literal";
+import {CACHE_DISABLED, CACHE_EMPTY_KEY, CACHE_EMPTY_VALUE} from "../config";
 
 // noinspection DuplicatedCode,JSUnusedGlobalSymbols
 export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements CacheBasic<A, N>, CacheBasicSecure<A, N> {
 
     // region properties
-    protected readonly format: CacheFormat<A, N>;
-    protected readonly invalidator: CacheInvalidator<A>;
-    protected readonly prop: Readonly<CacheChannelProp<A>>;
-    protected readonly check: CacheChannelPropSecure<A>;
-    protected readonly ignoredMap: Map<InvalidatorType, CacheCommandDisabledLambda<A, unknown>>;
-    protected readonly disabledMap: Map<InvalidatorType, CacheCommandDisabledLambda<A, unknown>>;
+    protected readonly channel: CacheChannel<A, N>;
+    protected format: CacheFormat<A, N>;
+    protected invalidator: CacheInvalidator<A>;
+    protected prop: Readonly<CacheChannelProp<A>>;
+    protected check: CacheChannelPropSecure<A>;
+    protected ignoredMap: Map<InvalidatorType, CacheCommandIgnoredLambda<A, unknown>>;
+    protected disabledMap: Map<InvalidatorType, CacheCommandDisabledLambda<A, unknown>>;
     // endregion properties
 
     // region constructor
     protected constructor(channel: CacheChannel<A, N>) {
-        this.format = channel.format;
-        this.invalidator = channel.invalidator;
-        this.prop = channel.prop;
-        this.check = channel.prop.$secure;
+        this.channel = channel;
         this.ignoredMap = new Map();
         this.disabledMap = new Map();
-
         cacheUtil.bindAll(this);
         this._fillInvalidators();
     }
+
     // endregion constructor
 
     // region private
@@ -55,8 +63,8 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         this.disabledMap.set('boolean', this.invalidator.disabledFalse);
         this.ignoredMap.set('boolean', this.invalidator.ignoreFalse);
 
-        this.disabledMap.set('number', this.invalidator.disabledZero);
-        this.ignoredMap.set('number', this.invalidator.ignoreZero);
+        this.disabledMap.set('number', this.invalidator.disabledNumber);
+        this.ignoredMap.set('number', this.invalidator.ignoreNumber);
 
         this.disabledMap.set('string', this.invalidator.disabledText);
         this.ignoredMap.set('string', this.invalidator.ignoreText);
@@ -67,7 +75,8 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         this.disabledMap.set('object', this.invalidator.disabledRecord);
         this.ignoredMap.set('object', this.invalidator.ignoreRecord);
     }
-    private _formatRawValue(value: string|number): string {
+
+    private _formatRawValue(value: string | number): string {
         switch (typeof value) {
             case "string":
                 const str = value.trim();
@@ -81,6 +90,7 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
                 return null;
         }
     }
+
     private _afterSetMore(opt: CmdBasicSetMoreBase, fulls: Array<string>): void {
         if (!opt) {
             return;
@@ -107,22 +117,22 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
                 break;
         }
     }
+
     private _setDocsMore(key: KeyAny, index: number, value: Partial<A>, formatted: Record<string, string>, keys: Array<string>) {
         const {full} = this.format.key(key);
         if (full) {
             if (!formatted[full]) {
                 formatted[full] = cacheUtil.jsonOne(value);
                 keys.push(full);
-            }
-            else {
+            } else {
                 console.log(`Duplicated key: ${key}, index: ${index}`);
             }
-        }
-        else {
+        } else {
             console.log(`Invalid key: ${key}, index: ${index}`);
         }
     }
-    private _setRawsMore<T extends string|number>(key: KeyAny, index: number, value: T, formatted: Record<string, string>, keys: Array<string>): void {
+
+    private _setRawsMore<T extends string | number>(key: KeyAny, index: number, value: T, formatted: Record<string, string>, keys: Array<string>): void {
         const {full} = this.format.key(key);
         if (!formatted[full]) {
             const str = this._formatRawValue(value);
@@ -135,102 +145,54 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         }
         console.log(`Duplicated key: ${key}, index: ${index}`);
     }
-    protected async _single <T>(cmd: keyof CacheBasic<A, N>, key: KeyAny, type: InvalidatorType, success: CacheBasicSimpleCommand<T>, args?: Array<unknown>): Promise<CacheInvalidatorResult<A, T>> {
-        if (!this.prop.enabled) {
-            return (this.disabledMap.get(type) as CacheCommandDisabledLambda<A, T>)();
-        }
-        const {full} = this.format.key(key);
-        if (!full) {
-            return (this.ignoredMap.get(type) as CacheCommandIgnoredLambda<A, T>)('Empty key', cmd);
-        }
-        if (!Array.isArray(args)) {
-            args = [];
-        }
-        const result = (await success([full], ...args))[0];
-        return this.invalidator.success(result, [full]);
-    }
-    protected async _multiple <T>(cmd: keyof CacheBasic<A, N>, keys: KeyAnyArray, lambda: CacheBasicSimpleCommand<T>, args?: Array<unknown>): Promise<CacheInvalidatorResult<A, Array<T>>> {
-        if (!this.prop.enabled) {
-            return this.invalidator.disabledArray();
-        }
-        const {fulls} = this.format.keys(keys);
-        if (fulls.length < 1) {
-            return this.invalidator.ignoreArray('Empty key', cmd);
-        }
-        if (!Array.isArray(args)) {
-            args = [];
-        }
-        const result = await lambda(fulls, ...args);
-        return this.invalidator.success(result, fulls);
-    }
-    protected async _singleNumberValidator (cmd: keyof CacheBasic<A, N>, key: KeyAny, lambda: CacheBasicSimpleNumberCommand): Promise<CacheInvalidatorResult<A, boolean>> {
-        if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
-        }
-        const {full} = this.format.key(key);
-        if (!full) {
-            return this.invalidator.ignoreFalse('Empty key', cmd);
-        }
-        const result = (await lambda([full])) > 0;
-        return this.invalidator.success(result, [full]);
-    }
-    protected async _multipleNumber (cmd: keyof CacheBasic<A, N>, keys: KeyAnyArray, lambda: CacheBasicSimpleNumberCommand): Promise<CacheInvalidatorResult<A, number>> {
-        if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
-        }
-        const {fulls} = this.format.keys(keys);
-        if (fulls.length < 1) {
-            return this.invalidator.ignoreZero('Empty key', cmd);
-        }
-        return this.invalidator.success(await lambda(fulls), fulls);
-    }
+
     // endregion private
 
     // region delete
     /** @inheritDoc */
-    async delete(key: KeyAny): Promise<CacheInvalidatorResult<A, boolean>> {
+    async delete(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultBoolean>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreFalse('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
-        return this.invalidator.success(await this.$delete(full), [full]);
+        return this.invalidator.success((await this.$delete(full)) ? 1 : 0, [full]);
     }
 
     /** @inheritDoc */
-    async deleteMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, number>> {
+    async deleteMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, CacheResultNumber>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {fulls} = this.format.keys(keys);
         if (fulls.length < 1) {
-            return this.invalidator.ignoreZero('Empty keys');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty keys');
         }
         return this.invalidator.success(await this.$deleteMore(fulls), fulls);
     }
 
     /** @inheritDoc */
-    async unlink(key: KeyAny): Promise<CacheInvalidatorResult<A, boolean>> {
+    async unlink(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultBoolean>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreFalse('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
-        return this.invalidator.success(await this.$unlink(full), [full]);
+        return this.invalidator.success((await this.$unlink(full)) ? 1 : 0, [full]);
     }
 
     /** @inheritDoc */
-    async unlinkMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, number>> {
+    async unlinkMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, CacheResultNumber>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {fulls} = this.format.keys(keys);
         if (fulls.length < 1) {
-            return this.invalidator.ignoreZero('Empty keys');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty keys');
         }
         return this.invalidator.success(await this.$unlinkMore(fulls), fulls);
     }
@@ -239,28 +201,29 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
 
     // region exists
     /** @inheritDoc */
-    async exists(key: KeyAny): Promise<CacheInvalidatorResult<A, boolean>> {
+    async exists(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultBoolean>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreFalse('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
-        return this.invalidator.success(await this.$exists(full), [full]);
+        return this.invalidator.success((await this.$exists(full)) ? 1 : 0, [full]);
     }
 
     /** @inheritDoc */
-    async existMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, number>> {
+    async existMore(keys: KeyAnyArray): Promise<CacheInvalidatorResult<A, CacheResultNumber>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {fulls} = this.format.keys(keys);
         if (fulls.length < 1) {
-            return this.invalidator.ignoreZero('Empty keys');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty keys');
         }
         return this.invalidator.success(await this.$existMore(fulls), fulls);
     }
+
     // endregion exists
 
     // region get
@@ -315,9 +278,9 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
     // endregion get
 
     // region set
-    async setDoc(p1: KeyAny | Partial<A>, p2?: Partial<A> | CmdBasicSetWithKey<A>, p3?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, Partial<A> | boolean>> {
+    async setDoc(p1: KeyAny | Partial<A>, p2?: Partial<A> | CmdBasicSetWithKey<A>, p3?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, Partial<A> | CacheResulSet>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         let key: CacheFormatRec;
         let value: Partial<A>;
@@ -326,7 +289,7 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         if (['string', 'number'].includes(typeof p1) || Array.isArray(p1)) {
             key = this.format.key(p1 as IdAny);
             if (!key.full) {
-                return this.invalidator.ignoreFalse();
+                return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY);
             }
             value = p2 as Partial<A>;
             opt = p3 as CmdBasicSetBase;
@@ -349,11 +312,11 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
             const keyParts = properties.map(p => value[p]);
             key = this.format.key(keyParts);
             if (!key.full) {
-                return this.invalidator.ignoreFalse('Invalid key');
+                return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY);
             }
         }
         if (!value) {
-            return this.invalidator.ignoreFalse('Invalid value');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE);
         }
         const result = await this.$set(key.full, cacheUtil.jsonOne(value), opt);
         if (opt.span === 'persistent') {
@@ -363,19 +326,20 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         if (opt.returnPrevious !== undefined) {
             return this.invalidator.success(cacheUtil.parseOne(result), [key.full]);
         }
-        return this.invalidator.success(result === 'OK', [key.full]);
+        return this.invalidator.success(result === 'OK' ? 1 : 0, [key.full]);
     }
-    async setRaw<T extends string|number>(key: KeyAny, value: T, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, string | boolean>> {
+
+    async setRaw<T extends string | number>(key: KeyAny, value: T, opt?: CmdBasicSetBase): Promise<CacheInvalidatorResult<A, string | CacheResulSet>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreFalse();
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY);
         }
         const formattedValue = this._formatRawValue(value);
         if (!formattedValue) {
-            return this.invalidator.ignoreFalse('Invalid type value');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Invalid type value');
         }
         const result = await this.$set(full, formattedValue, opt);
         if (opt.span === 'persistent') {
@@ -385,14 +349,15 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         if (opt.returnPrevious !== undefined) {
             return this.invalidator.success(result, [full]);
         }
-        return this.invalidator.success(result === 'OK', [full]);
+        return this.invalidator.success(result === 'OK' ? 1 : 0, [full]);
     }
-    async setDocsMore(values: Array<Partial<A>> | Record<KeyId, Partial<A>> | Map<KeyId, Partial<A>> | Array<[KeyId, Partial<A>]>, opt?: CmdBasicSetMoreWithProp<A> | CmdBasicSetMoreBase): Promise<CacheInvalidatorResult<A, boolean>> {
+
+    async setDocsMore(values: Array<Partial<A>> | Record<KeyId, Partial<A>> | Map<KeyId, Partial<A>> | Array<[KeyId, Partial<A>]>, opt?: CmdBasicSetMoreWithProp<A> | CmdBasicSetMoreBase): Promise<CacheInvalidatorResult<A, CacheResulSet>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         if (!values) {
-            return this.invalidator.ignoreFalse('Empty values');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty values');
         }
         if (typeof values !== 'object') {
             throw new Error('Invalid set data');
@@ -403,7 +368,7 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         // Array<Partial<A>> | Array<[KeyId, Partial<A>]>
         if (Array.isArray(values)) {
             if (values.length < 1) {
-                return this.invalidator.ignoreFalse('Empty array items');
+                return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty array items');
             }
             const first = values[0];
             // Array<[KeyId, Partial<A>]>
@@ -426,15 +391,14 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
                     const keyParts = properties.map(p => value[p]);
                     this._setDocsMore(keyParts, index, value, formatted, keys);
                 });
-            }
-            else {
+            } else {
                 throw new Error('Invalid set data');
             }
         }
         // Map<KeyId, Partial<A>>
         else if (values instanceof Map) {
             if (values.size < 1) {
-                return this.invalidator.ignoreFalse('Empty map items');
+                return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty map items');
             }
             let index = 0;
             for (const [key, value] of values.entries()) {
@@ -445,7 +409,7 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         // Record<KeyId, Partial<A>>
         else {
             if (Object.keys(values).length < 1) {
-                return this.invalidator.ignoreFalse('Empty record value');
+                return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty record value');
             }
             let index = 0;
             for (const [key, value] of Object.entries(values)) {
@@ -454,18 +418,19 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
             }
         }
         if (keys.length < 1) {
-            this.invalidator.ignoreZero();
+            this.invalidator.ignoreNumber(CACHE_EMPTY_KEY);
         }
         const result = await this.$setMore(formatted);
         this._afterSetMore(opt, keys);
-        return this.invalidator.success(result === 'OK', keys);
+        return this.invalidator.success(result === 'OK' ? 1 : 0, keys);
     }
-    async setRawsMore<T extends string|number>(values: Record<KeyId, T>|Map<KeyId, T>|Array<[KeyId, T]>, opt?: CmdBasicSetMoreBase): Promise<CacheInvalidatorResult<A, boolean>> {
+
+    async setRawsMore<T extends string | number>(values: Record<KeyId, T> | Map<KeyId, T> | Array<[KeyId, T]>, opt?: CmdBasicSetMoreBase): Promise<CacheInvalidatorResult<A, CacheResulSet>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         if (!values) {
-            return this.invalidator.ignoreFalse('Empty value');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty value');
         }
         if (typeof values !== 'object') {
             throw new Error('Invalid set data');
@@ -476,7 +441,7 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         // Array<Partial<A>> | Array<[KeyId, Partial<A>]>
         if (Array.isArray(values)) {
             if (values.length < 1) {
-                return this.invalidator.ignoreFalse('Empty array items');
+                return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty array items');
             }
             const first = values[0];
             // Array<[KeyId, Partial<A>]>
@@ -486,15 +451,14 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
                     const [key, value] = item;
                     this._setRawsMore(key, index, value, formatted, keys);
                 });
-            }
-            else {
+            } else {
                 throw new Error('Invalid set data');
             }
         }
         // Map<KeyId, Partial<A>>
         else if (values instanceof Map) {
             if (values.size < 1) {
-                return this.invalidator.ignoreFalse('Empty map items');
+                return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty map items');
             }
             let index = 0;
             for (const [key, value] of values.entries()) {
@@ -505,7 +469,7 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         // Record<KeyId, Partial<A>>
         else {
             if (Object.keys(values).length < 1) {
-                return this.invalidator.ignoreFalse('Empty record value');
+                return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty record value');
             }
             let index = 0;
             for (const [key, value] of Object.entries(values)) {
@@ -514,29 +478,30 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
             }
         }
         if (keys.length < 1) {
-            this.invalidator.ignoreZero('Empty keys');
+            this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty keys');
         }
         const result = await this.$setMore(formatted);
         this._afterSetMore(opt, keys);
-        return this.invalidator.success(result === 'OK', keys);
+        return this.invalidator.success(result === 'OK' ? 1 : 0, keys);
     }
+
     // endregion set
 
     // region other
     /** @inheritDoc */
-    async copy(source: KeyAny, destination: KeyAny, opt?: CmdBasicCopy): Promise<CacheInvalidatorResult<A, boolean>> {
+    async copy(source: KeyAny, destination: KeyAny, opt?: CmdBasicCopy): Promise<CacheInvalidatorResult<A, CacheResulCopy>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const sourceKey = this.format.key(source);
         if (!sourceKey.full) {
-            return this.invalidator.ignoreFalse('Source is empty');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Source is empty');
         }
         const destinationKey = this.format.key(destination);
         if (!destinationKey.full) {
-            return this.invalidator.ignoreFalse('Destination is empty');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Destination is empty');
         }
-        return this.invalidator.success(await this.$copy(sourceKey.full, destinationKey.full, opt), [sourceKey.full, destinationKey.full]);
+        return this.invalidator.success((await this.$copy(sourceKey.full, destinationKey.full, opt)) ? 1 : 0, [sourceKey.full, destinationKey.full]);
     }
 
     /** @inheritDoc */
@@ -582,11 +547,11 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
     /** @inheritDoc */
     async getTimestamp(key: KeyAny, opt?: CmdBasicGetTimestamp): Promise<CacheInvalidatorResult<A, CacheResultGetExpiry>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreZero('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
         const milliseconds = await this.$getTimestamp(full);
 
@@ -641,11 +606,11 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
     /** @inheritDoc */
     async getTtl(key: KeyAny, opt?: CmdBasicGetTtl): Promise<CacheInvalidatorResult<A, CacheResultGetExpiry>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreZero('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
         const milliseconds = await this.$getTtl(full);
 
@@ -700,18 +665,18 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
     /** @inheritDoc */
     async setTimestamp(key: KeyAny, opt?: CmdBasicSetTimestamp): Promise<CacheInvalidatorResult<A, CacheResultSetExpiry>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreZero('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
         if (!opt) {
             opt = {};
         }
         const milliseconds = this.check.$timestamp(opt.expiry);
         if (milliseconds < 1) {
-            return this.invalidator.ignoreZero('Invalid time value');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Invalid time value');
         }
         const mode = this.check.$expiryMode(opt.mode);
         this.invalidator.success(await this.$setTimestamp(full, milliseconds, mode), [full])
@@ -741,18 +706,18 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
     /** @inheritDoc */
     async setTtl(key: KeyAny, opt?: CmdBasicSetTtl): Promise<CacheInvalidatorResult<A, CacheResultSetExpiry>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreZero('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
         if (!opt) {
             opt = {};
         }
         const milliseconds = this.check.$timestamp(opt.expiry);
         if (milliseconds < 1) {
-            return this.invalidator.ignoreZero('Invalid time value');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Invalid time value');
         }
         const mode = this.check.$expiryMode(opt.mode);
         this.invalidator.success(await this.$setTtl(full, milliseconds, mode), [full])
@@ -782,11 +747,11 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
     /** @inheritDoc */
     async persist(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultPersist>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreZero('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
         return this.invalidator.success(await this.$persist(full), [full]);
     }
@@ -802,6 +767,7 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         }
         return this.invalidator.success(await this.$persistMore(fulls), fulls);
     }
+
     // endregion expiry
 
     // region secure
@@ -817,38 +783,58 @@ export abstract class CacheBasicAbstract<A extends TR, N extends Id> implements 
         return this as CacheBasic<A, N>;
     }
 
+    $init(): void {
+        this.format = this.channel.format;
+        this.invalidator = this.channel.invalidator;
+        this.prop = this.channel.prop;
+        this.check = this.channel.prop.$secure;
+    }
+
     abstract $copy(source: string, destination: string, opt?: CacheOptCopy): Promise<boolean>;
+
     abstract $get(key: string): Promise<string>;
+
     abstract $getMore(keys: Array<string>): Promise<Array<string>>;
 
-    abstract $exists(keys: string): Promise<boolean>;
+    abstract $exists(key: string): Promise<boolean>;
+
     abstract $existMore(keys: Array<string>): Promise<number>;
 
     abstract $set(key: string, value: string, opt?: CmdBasicSetBase): Promise<string>;
+
     abstract $setMore(records: Record<string, string>): Promise<string>;
 
     abstract $delete(key: string): Promise<boolean>;
+
     abstract $deleteMore(keys: Array<string>): Promise<number>;
 
     abstract $getTimestamp(key: string): Promise<CacheResultGetExpiry>;
+
     abstract $getTimestampMore(keys: Array<string>): Promise<Array<CacheResultGetExpiry>>;
 
     abstract $getTtl(key: string): Promise<CacheResultGetExpiry>;
+
     abstract $getTtlMore(keys: Array<string>): Promise<Array<CacheResultGetExpiry>>;
 
     abstract $type(key: string): Promise<string>;
+
     abstract $typeMore(keys: Array<string>): Promise<Array<string>>;
 
     abstract $persist(key: string): Promise<CacheResultPersist>;
+
     abstract $persistMore(keys: Array<string>): Promise<Array<CacheResultPersist>>;
 
     abstract $setTimestamp(key: string, milliseconds: number, mode?: ExpiryMode): Promise<CacheResultSetExpiry>;
-    abstract $setTimestampMore(key: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheResultSetExpiry>>;
+
+    abstract $setTimestampMore(keys: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheResultSetExpiry>>;
 
     abstract $setTtl(key: string, milliseconds: number, mode?: ExpiryMode): Promise<CacheResultSetExpiry>;
-    abstract $setTtlMore(key: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheResultSetExpiry>>;
 
-    abstract $unlink(keys: string): Promise<boolean>;
+    abstract $setTtlMore(keys: Array<string>, milliseconds: number, mode?: ExpiryMode): Promise<Array<CacheResultSetExpiry>>;
+
+    abstract $unlink(key: string): Promise<boolean>;
+
     abstract $unlinkMore(keys: Array<string>): Promise<number>;
+
     // endregion secure
 }

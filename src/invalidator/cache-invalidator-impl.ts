@@ -3,32 +3,32 @@ import {
     CacheInvalidatorConsumer,
     CacheInvalidatorFrom,
     CacheInvalidatorResult,
-    CacheInvalidatorSecure, Mutable
+    CacheInvalidatorSecure
 } from "./types";
 import {CacheChannel, CacheChannelDef} from "../channel";
 import {Id, IdAny, IdAnyArray, KeyAny, KeyAnyArray, OneOrMore, TR} from "../types";
 import {invalidatorRepo} from "./cache-invalidator-repo-impl";
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
-export abstract class CacheInvalidatorAbstract<A extends TR, N extends Id> implements CacheInvalidator<A>, CacheInvalidatorSecure<A> {
+export class CacheInvalidatorImpl<A extends TR, N extends Id> implements CacheInvalidator<A>, CacheInvalidatorSecure<A> {
     protected readonly channel: CacheChannel<A, N>; // from child
 
-    protected constructor(channel: CacheChannel<A, N>) {
+    constructor(channel: CacheChannel<A, N>) {
         this.channel = channel;
     }
 
     // region private
-    private _disabled<T>(result: T): CacheInvalidatorResult<A, T> {
+    private _disabled<T>(result: T, command?: string): CacheInvalidatorResult<A, T> {
         const obj = {
             keys: [],
             disabled: true,
             result,
+            command,
             add: (i, c?) => obj,
             addMore: (i, c?) => obj,
             addFromRelations: (doc) => obj,
             delete: (id) => obj,
             deleteMore: (id) => obj,
-            reset: (v) => obj,
         } as CacheInvalidatorResult<A, T>;
         return obj;
     }
@@ -44,7 +44,6 @@ export abstract class CacheInvalidatorAbstract<A extends TR, N extends Id> imple
             addFromRelations: (doc) => obj,
             delete: (id) => obj,
             deleteMore: (id) => obj,
-            reset: (v) => obj,
         } as CacheInvalidatorResult<A, T>;
         return obj;
     }
@@ -174,7 +173,6 @@ export abstract class CacheInvalidatorAbstract<A extends TR, N extends Id> imple
             addFromRelations: (doc) => obj,
             delete: (id) => obj,
             deleteMore: (id) => obj,
-            reset: (v) => obj,
         } as CacheInvalidatorResult<A, T>;
         return obj;
     }
@@ -190,7 +188,6 @@ export abstract class CacheInvalidatorAbstract<A extends TR, N extends Id> imple
             addFromRelations: (doc: Partial<A>, relations?: OneOrMore<CacheInvalidatorFrom<A>>) => this._addFromRelations(obj, doc, relations),
             delete: (id: KeyAny) => this._delete(obj, id),
             deleteMore: (ids: KeyAnyArray) => this._deleteMore(obj, ids),
-            reset: (v) => {(obj as Mutable<CacheInvalidatorResult<A, T>>).result = v; return obj;},
         } as CacheInvalidatorResult<A, T>;
         return obj;
     }
@@ -198,61 +195,85 @@ export abstract class CacheInvalidatorAbstract<A extends TR, N extends Id> imple
     // endregion execution
 
     // region disabled
-    disabledArray<T>(): CacheInvalidatorResult<A, Array<T>> {
-        return this._disabled<Array<T>>([]);
+    disabledArray<T>(cmd?: string): CacheInvalidatorResult<A, Array<T>> {
+        return this._disabled<Array<T>>([], cmd);
     }
 
-    disabledFalse(): CacheInvalidatorResult<A, boolean> {
-        return this._disabled(false);
-    }
-    disabledText(): CacheInvalidatorResult<A, string> {
-        return this._disabled<string>(null);
+    disabledFalse(cmd?: string): CacheInvalidatorResult<A, boolean> {
+        return this._disabled(false, cmd);
     }
 
-    disabledNull<T>(): CacheInvalidatorResult<A, T> {
-        return this._disabled<T>(null);
+    disabledText(cmd?: string): CacheInvalidatorResult<A, string> {
+        return this._disabled<string>(null, cmd);
     }
 
-    disabledRecord<T>(): CacheInvalidatorResult<A, Record<string, T>> {
-        return this._disabled<Record<string, T>>({});
+    disabledNull<T>(cmd?: string): CacheInvalidatorResult<A, T> {
+        return this._disabled<T>(null, cmd);
     }
 
-    disabledTrue(): CacheInvalidatorResult<A, boolean> {
-        return this._disabled(true);
+    disabledRecord<T>(cmd?: string): CacheInvalidatorResult<A, Record<string, T>> {
+        return this._disabled<Record<string, T>>({}, cmd);
     }
 
-    disabledZero<N extends number = number>(def: N = (0 as N)): CacheInvalidatorResult<A, N> {
-        return this._disabled(def);
+    disabledTrue(cmd?: string): CacheInvalidatorResult<A, boolean> {
+        return this._disabled(true, cmd);
+    }
+
+    disabledNumber<N extends number = number>(v1?: N | string, v2?: string): CacheInvalidatorResult<A, N> {
+        let def: N;
+        let cmd: string;
+        if (v1 === undefined && v2 === undefined) {
+            def = 0 as N;
+        } else if (typeof v1 === 'number') {
+            def = v1;
+            cmd = v2;
+        }
+        return this._disabled(def, cmd);
     }
 
     // endregion disabled
 
     // region ignore
-    ignoreArray<T>(error?: string | Error, command?: string): CacheInvalidatorResult<A, Array<T>> {
-        return this._ignore<Array<T>>([], error, command);
+    ignoreArray<T>(error?: string | Error, cmd?: string): CacheInvalidatorResult<A, Array<T>> {
+        return this._ignore<Array<T>>([], error, cmd);
     }
 
-    ignoreFalse(error?: string | Error, command?: string): CacheInvalidatorResult<A, boolean> {
-        return this._ignore(false, error, command);
+    ignoreFalse(error?: string | Error, cmd?: string): CacheInvalidatorResult<A, boolean> {
+        return this._ignore(false, error, cmd);
     }
 
-    ignoreText(error?: string | Error, command?: string): CacheInvalidatorResult<A, string> {
-        return this._ignore(null, error, command);
-    }
-    ignoreNull<T>(error?: string | Error, command?: string): CacheInvalidatorResult<A, T> {
-        return this._ignore<T>(null, error, command);
+    ignoreText(error?: string | Error, cmd?: string): CacheInvalidatorResult<A, string> {
+        return this._ignore(null, error, cmd);
     }
 
-    ignoreRecord<T>(error?: string | Error, command?: string): CacheInvalidatorResult<A, Record<string, T>> {
-        return this._ignore<Record<string, T>>({}, error, command);
+    ignoreNull<T>(error?: string | Error, cmd?: string): CacheInvalidatorResult<A, T> {
+        return this._ignore<T>(null, error, cmd);
     }
 
-    ignoreTrue(error?: string | Error, command?: string): CacheInvalidatorResult<A, boolean> {
-        return this._ignore(true, error, command);
+    ignoreRecord<T>(error?: string | Error, cmd?: string): CacheInvalidatorResult<A, Record<string, T>> {
+        return this._ignore<Record<string, T>>({}, error, cmd);
     }
 
-    ignoreZero<N extends number = number>(error?: string | Error, command?: string): CacheInvalidatorResult<A, N> {
-        return this._ignore(0 as N, error, command);
+    ignoreTrue(error?: string | Error, cmd?: string): CacheInvalidatorResult<A, boolean> {
+        return this._ignore(true, error, cmd);
+    }
+
+    ignoreNumber<N extends number = number>(v1: N | string | Error, v2?: string | Error, v3?: string): CacheInvalidatorResult<A, N> {
+        let def: N;
+        let error: string | Error;
+        let cmd: string;
+        if (v1 === undefined && v2 === undefined && v3 === undefined) {
+            def = 0 as N;
+        } else if (typeof v1 === 'number') {
+            def = v1;
+            error = v2;
+            cmd = v3;
+        } else if (typeof v1 === 'string' || v1 instanceof Error) {
+            def = 0 as N;
+            error = v1;
+            cmd = v2 as string;
+        }
+        return this._ignore(def, error, cmd);
     }
 
     // endregion ignore

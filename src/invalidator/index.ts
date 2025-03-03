@@ -1,2 +1,2 @@
-export * from './cache-invalidator-abstract';
+export * from './cache-invalidator-impl';
 export * from './types';

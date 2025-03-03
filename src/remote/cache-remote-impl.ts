@@ -55,6 +55,7 @@ export class CacheRemoteImpl implements CacheRemote {
                 .catch(e => console.log(`Error for 'invalidate' in remote: ${this.id}! => ${e.message}`));
         }
     }
+
     $invalidatorForDelete(data: CacheInvalidatorDeleteRequest): void {
         if (!this._enabled) {
             return;

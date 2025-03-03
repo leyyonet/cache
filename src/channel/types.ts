@@ -13,6 +13,7 @@ import {ShiftMain, ShiftSecureFlat} from "../secure";
 import {CacheAlias} from "../alias";
 
 export interface CacheChannel<A extends TR, N extends Id> extends ShiftSecureFlat<CacheChannelSecure<A, N>, CacheChannelDef>, CacheInvalidatorConsumer {
+    readonly full: string;
     readonly path: string;
     readonly id: string;
     readonly entity: CacheEntity<A>; // from client
@@ -21,16 +22,11 @@ export interface CacheChannel<A extends TR, N extends Id> extends ShiftSecureFla
     readonly prop: Readonly<CacheChannelProp<A>>;
     readonly format: CacheFormat<A, N>; // from client
     readonly invalidator: CacheInvalidator<A>;
+    readonly hash: CacheHash<A, N>;
+    readonly basic: CacheBasic<A, N>;
+    readonly set: CacheSet<A, N>;
+    readonly alias: CacheAlias<A, N>;
 
-    get full(): string;
-
-    get hash(): CacheHash<A, N>;
-
-    get basic(): CacheBasic<A, N>;
-
-    get set(): CacheSet<A, N>;
-
-    get alias(): CacheAlias<A, N>;
 
     info(check: CacheInfoCheck): Promise<CacheChannelInfo>;
 
@@ -39,8 +35,6 @@ export interface CacheChannel<A extends TR, N extends Id> extends ShiftSecureFla
 }
 
 export interface CacheChannelSecure<A extends TR, N extends Id> extends ShiftMain<CacheChannel<A, N>> {
-    $setFull(full: string): void;
-
     get $pNames(): Array<string>;
 
     $setProp(prop: Partial<CacheChannelPropData<A>>): void;

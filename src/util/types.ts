@@ -2,7 +2,10 @@ import {BuilderAny} from "@leyyo/builder";
 import {Id} from "../types";
 
 export interface CacheUtil {
+    alphaNumeric(value: string): string;
+
     bindAll(instance: Object): void;
+
     objectInfo(value: unknown): string;
 
     checkObject(holder: string, type: string, obj: unknown, fn: string): void;

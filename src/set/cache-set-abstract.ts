@@ -4,47 +4,48 @@ import {CacheInvalidator, CacheInvalidatorResult} from "../invalidator";
 import {CacheFormat} from "../format";
 import {CacheChannel, CacheChannelProp, CacheChannelPropSecure} from "../channel";
 import {cacheUtil} from "../util";
+import {CacheResultBoolean, CacheResultNumber} from "../command";
+import {CACHE_DISABLED, CACHE_EMPTY_KEY, CACHE_EMPTY_VALUE} from "../config";
 
 // noinspection DuplicatedCode,JSUnusedGlobalSymbols
 export abstract class CacheSetAbstract<A extends TR, N extends Id> implements CacheSet<A, N>, CacheSetSecure<A, N> {
 
     // region properties
-    protected readonly format: CacheFormat<A, N>;
-    protected readonly invalidator: CacheInvalidator<A>;
-    protected readonly prop: Readonly<CacheChannelProp<A>>;
-    protected readonly check: CacheChannelPropSecure<A>;
+    protected readonly channel: CacheChannel<A, N>;
+    protected format: CacheFormat<A, N>;
+    protected invalidator: CacheInvalidator<A>;
+    protected prop: Readonly<CacheChannelProp<A>>;
+    protected check: CacheChannelPropSecure<A>;
     // endregion properties
 
     // region constructor
     protected constructor(channel: CacheChannel<A, N>) {
-        this.format = channel.format;
-        this.invalidator = channel.invalidator;
-        this.prop = channel.prop;
-        this.check = channel.prop.$secure;
+        this.channel = channel;
 
         cacheUtil.bindAll(this);
     }
+
     // endregion constructor
 
     // region region
 
-    async add(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, number>> {
+    async add(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, CacheResultNumber>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
 
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreZero();
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY);
         }
         const {shorts} = this.format.memberShorts(members);
         if (shorts.length < 1) {
-            return this.invalidator.ignoreZero();
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty members');
         }
         return this.invalidator.success(await this.$add(full, shorts), [full]);
     }
 
-    async existMore(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, Array<boolean>>> {
+    async existMore(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, Array<CacheResultBoolean>>> {
         if (!this.prop.enabled) {
             return this.invalidator.disabledArray();
         }
@@ -58,31 +59,31 @@ export abstract class CacheSetAbstract<A extends TR, N extends Id> implements Ca
         }
         const promises = checkedMembers.map(m => this.$exist(full, m)) as Array<Promise<boolean>>;
         const results = await Promise.all(promises);
-        return this.invalidator.success(results, [full]);
+        return this.invalidator.success(results.map(i => i ? 1 : 0), [full]);
     }
 
-    async exists(key: KeyAny, member: N): Promise<CacheInvalidatorResult<A, boolean>> {
+    async exists(key: KeyAny, member: N): Promise<CacheInvalidatorResult<A, CacheResultBoolean>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledFalse();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreFalse('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
         const checkedMember = this.format.member(member);
         if (!checkedMember) {
-            return this.invalidator.ignoreFalse('Empty member');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty member');
         }
-        return this.invalidator.success(await this.$exist(full, checkedMember), [full]);
+        return this.invalidator.success((await this.$exist(full, checkedMember)) ? 1 : 0, [full]);
     }
 
-    async getLength(key: KeyAny): Promise<CacheInvalidatorResult<A, number>> {
+    async getLength(key: KeyAny): Promise<CacheInvalidatorResult<A, CacheResultNumber>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreZero('Empty key');
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_KEY, 'Empty key');
         }
         return this.invalidator.success(await this.$length(full), [full]);
     }
@@ -98,20 +99,21 @@ export abstract class CacheSetAbstract<A extends TR, N extends Id> implements Ca
         return this.invalidator.success(await this.$list(full), [full]);
     }
 
-    async remove(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, number>> {
+    async remove(key: KeyAny, members: Array<N>): Promise<CacheInvalidatorResult<A, CacheResultNumber>> {
         if (!this.prop.enabled) {
-            return this.invalidator.disabledZero();
+            return this.invalidator.disabledNumber(CACHE_DISABLED);
         }
         const {full} = this.format.key(key);
         if (!full) {
-            return this.invalidator.ignoreZero();
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE);
         }
         const {shorts} = this.format.memberShorts(members);
         if (shorts.length < 1) {
-            return this.invalidator.ignoreZero();
+            return this.invalidator.ignoreNumber(CACHE_EMPTY_VALUE, 'Empty members');
         }
         return this.invalidator.success(await this.$remove(full, shorts), [full]);
     }
+
     // endregion region
 
     // region secure
@@ -125,6 +127,13 @@ export abstract class CacheSetAbstract<A extends TR, N extends Id> implements Ca
 
     get $back(): CacheSet<A, N> {
         return this as CacheSet<A, N>;
+    }
+
+    $init(): void {
+        this.format = this.channel.format;
+        this.invalidator = this.channel.invalidator;
+        this.prop = this.channel.prop;
+        this.check = this.channel.prop.$secure;
     }
 
     // SADD(full, shorts)
@@ -141,6 +150,7 @@ export abstract class CacheSetAbstract<A extends TR, N extends Id> implements Ca
 
     // SREM(full, shorts)
     abstract $remove(key: string, members: Array<string>): Promise<number>;
+
 
     // endregion secure
 

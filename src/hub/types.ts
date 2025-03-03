@@ -59,6 +59,7 @@ export interface CacheHubSecure extends ShiftMain<CacheHub> {
     $checkSegment(segment: CacheSegment): void;
 
     $checkEntity(entity: CacheEntityDef): void;
+
     $checkInvalidatorConsumer(consumer: CacheInvalidatorConsumer): void;
 }
 
